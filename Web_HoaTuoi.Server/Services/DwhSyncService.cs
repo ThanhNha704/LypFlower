@@ -43,176 +43,247 @@ namespace Web_HoaTuoi.Server.Services
             using var dwhConn = new SqlConnection(_dwhConnectionString);
             await dwhConn.OpenAsync();
 
-            // ── A. Sync Dim_Customer ───────────────────────────────────
-            foreach (var u in users)
+            // Start Transaction to make updates extremely fast
+            using var transaction = dwhConn.BeginTransaction();
+
+            try
             {
-                var customerKey = await dwhConn.ExecuteScalarAsync<int?>(
-                    "SELECT CustomerKey FROM Dim_Customer WHERE CustomerId = @Id", new { Id = u.Id });
+                // ── A. Sync Dim_Customer ───────────────────────────────────
+                var existingCustomers = (await dwhConn.QueryAsync<(string CustomerId, int CustomerKey)>(
+                    "SELECT CustomerId, CustomerKey FROM Dim_Customer", transaction: transaction))
+                    .ToDictionary(x => x.CustomerId, x => x.CustomerKey);
 
-                var param = new {
-                    Id = u.Id,
-                    FullName = u.FullName ?? "Unknown",
-                    Email = u.Email ?? "N/A",
-                    Phone = u.Phone,
-                    Address = u.Address,
-                    CreatedAt = u.CreatedAt
-                };
+                var customersToInsert = new List<object>();
+                var customersToUpdate = new List<object>();
 
-                if (customerKey.HasValue)
+                foreach (var u in users)
                 {
-                    await dwhConn.ExecuteAsync(
-                        @"UPDATE Dim_Customer SET FullName = @FullName, Email = @Email, Phone = @Phone, Address = @Address 
-                          WHERE CustomerKey = @CustomerKey", 
-                        new { CustomerKey = customerKey.Value, FullName = param.FullName, Email = param.Email, Phone = param.Phone, Address = param.Address });
+                    var param = new {
+                        Id = u.Id,
+                        FullName = u.FullName ?? "Unknown",
+                        Email = u.Email ?? "N/A",
+                        Phone = u.Phone,
+                        Address = u.Address,
+                        CreatedAt = u.CreatedAt
+                    };
+
+                    if (existingCustomers.TryGetValue(u.Id, out var key))
+                    {
+                        customersToUpdate.Add(new { CustomerKey = key, FullName = param.FullName, Email = param.Email, Phone = param.Phone, Address = param.Address });
+                    }
+                    else
+                    {
+                        customersToInsert.Add(param);
+                    }
                 }
-                else
+
+                if (customersToInsert.Any())
                 {
                     await dwhConn.ExecuteAsync(
                         @"INSERT INTO Dim_Customer (CustomerId, FullName, Email, Phone, Address, CreatedAt) 
-                          VALUES (@Id, @FullName, @Email, @Phone, @Address, @CreatedAt)", param);
+                          VALUES (@Id, @FullName, @Email, @Phone, @Address, @CreatedAt)", customersToInsert, transaction: transaction);
                 }
-            }
 
-            // Ensure dummy customer exists
-            var hasDummy = await dwhConn.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM Dim_Customer WHERE CustomerId = '-1'");
-            if (hasDummy == 0)
-            {
-                await dwhConn.ExecuteAsync(
-                    "INSERT INTO Dim_Customer (CustomerId, FullName, Email, Phone, Address, City) VALUES ('-1', 'Unknown Guest', 'N/A', 'N/A', 'N/A', 'N/A')");
-            }
-
-            // ── B. Sync Dim_Product ────────────────────────────────────
-            foreach (var p in products)
-            {
-                var productKey = await dwhConn.ExecuteScalarAsync<int?>(
-                    "SELECT ProductKey FROM Dim_Product WHERE ProductId = @Id", new { Id = p.Id });
-
-                var param = new {
-                    Id = p.Id,
-                    ProductName = p.Name,
-                    CategoryName = p.CategoryName ?? "Uncategorized",
-                    Price = p.Price,
-                    Cost = p.Price * 0.7m,
-                    Status = "Active"
-                };
-
-                if (productKey.HasValue)
+                if (customersToUpdate.Any())
                 {
                     await dwhConn.ExecuteAsync(
-                        @"UPDATE Dim_Product SET ProductName = @ProductName, CategoryName = @CategoryName, Price = @Price 
-                          WHERE ProductKey = @ProductKey", 
-                        new { ProductKey = productKey.Value, ProductName = param.ProductName, CategoryName = param.CategoryName, Price = param.Price });
+                        @"UPDATE Dim_Customer SET FullName = @FullName, Email = @Email, Phone = @Phone, Address = @Address 
+                          WHERE CustomerKey = @CustomerKey", customersToUpdate, transaction: transaction);
                 }
-                else
+
+                // Ensure dummy customer exists
+                if (!existingCustomers.ContainsKey("-1"))
+                {
+                    await dwhConn.ExecuteAsync(
+                        "INSERT INTO Dim_Customer (CustomerId, FullName, Email, Phone, Address, City) VALUES ('-1', 'Unknown Guest', 'N/A', 'N/A', 'N/A', 'N/A')", 
+                        transaction: transaction);
+                }
+
+                // ── B. Sync Dim_Product ────────────────────────────────────
+                var existingProducts = (await dwhConn.QueryAsync<(int ProductId, int ProductKey)>(
+                    "SELECT ProductId, ProductKey FROM Dim_Product", transaction: transaction))
+                    .ToDictionary(x => x.ProductId, x => x.ProductKey);
+
+                var productsToInsert = new List<object>();
+                var productsToUpdate = new List<object>();
+
+                foreach (var p in products)
+                {
+                    var param = new {
+                        Id = p.Id,
+                        ProductName = p.Name,
+                        CategoryName = p.CategoryName ?? "Uncategorized",
+                        Price = p.Price,
+                        Cost = p.Price * 0.7m,
+                        Status = "Active"
+                    };
+
+                    if (existingProducts.TryGetValue(p.Id, out var key))
+                    {
+                        productsToUpdate.Add(new { ProductKey = key, ProductName = param.ProductName, CategoryName = param.CategoryName, Price = param.Price });
+                    }
+                    else
+                    {
+                        productsToInsert.Add(param);
+                    }
+                }
+
+                if (productsToInsert.Any())
                 {
                     await dwhConn.ExecuteAsync(
                         @"INSERT INTO Dim_Product (ProductId, ProductName, CategoryName, Price, Cost, Status) 
-                          VALUES (@Id, @ProductName, @CategoryName, @Price, @Cost, @Status)", param);
+                          VALUES (@Id, @ProductName, @CategoryName, @Price, @Cost, @Status)", productsToInsert, transaction: transaction);
                 }
-            }
 
-            // ── C. Sync Dim_Time ───────────────────────────────────────
-            var orderDates = orders.Select(o => o.CreatedAt.Date).Distinct().ToList();
-            foreach (var date in orderDates)
-            {
-                int timeKey = int.Parse(date.ToString("yyyyMMdd"));
-                var timeExists = await dwhConn.ExecuteScalarAsync<int>(
-                    "SELECT COUNT(*) FROM Dim_Time WHERE TimeKey = @TimeKey", new { TimeKey = timeKey });
-
-                if (timeExists == 0)
+                if (productsToUpdate.Any())
                 {
-                    var param = new {
-                        TimeKey = timeKey,
-                        FullDate = date,
-                        Day = date.Day,
-                        Month = date.Month,
-                        MonthName = date.ToString("MMMM", System.Globalization.CultureInfo.InvariantCulture),
-                        Quarter = (date.Month - 1) / 3 + 1,
-                        Year = date.Year,
-                        DayOfWeek = date.DayOfWeek.ToString(),
-                        IsWeekend = (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday) ? 1 : 0
-                    };
+                    await dwhConn.ExecuteAsync(
+                        @"UPDATE Dim_Product SET ProductName = @ProductName, CategoryName = @CategoryName, Price = @Price 
+                          WHERE ProductKey = @ProductKey", productsToUpdate, transaction: transaction);
+                }
+
+                // ── C. Sync Dim_Time ───────────────────────────────────────
+                var existingTimeKeys = (await dwhConn.QueryAsync<int>(
+                    "SELECT TimeKey FROM Dim_Time", transaction: transaction)).ToHashSet();
+
+                var orderDates = orders.Select(o => o.CreatedAt.Date).Distinct().ToList();
+                var timesToInsert = new List<object>();
+
+                foreach (var date in orderDates)
+                {
+                    int timeKey = int.Parse(date.ToString("yyyyMMdd"));
+                    if (!existingTimeKeys.Contains(timeKey))
+                    {
+                        timesToInsert.Add(new {
+                            TimeKey = timeKey,
+                            FullDate = date,
+                            Day = date.Day,
+                            Month = date.Month,
+                            MonthName = date.ToString("MMMM", System.Globalization.CultureInfo.InvariantCulture),
+                            Quarter = (date.Month - 1) / 3 + 1,
+                            Year = date.Year,
+                            DayOfWeek = date.DayOfWeek.ToString(),
+                            IsWeekend = (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday) ? 1 : 0
+                        });
+                    }
+                }
+
+                if (timesToInsert.Any())
+                {
                     await dwhConn.ExecuteAsync(
                         @"INSERT INTO Dim_Time (TimeKey, FullDate, Day, Month, MonthName, Quarter, Year, DayOfWeek, IsWeekend) 
-                          VALUES (@TimeKey, @FullDate, @Day, @Month, @MonthName, @Quarter, @Year, @DayOfWeek, @IsWeekend)", param);
+                          VALUES (@TimeKey, @FullDate, @Day, @Month, @MonthName, @Quarter, @Year, @DayOfWeek, @IsWeekend)", timesToInsert, transaction: transaction);
                 }
-            }
 
-            // ── D. Sync Fact_Sales ─────────────────────────────────────
-            var customerMap = (await dwhConn.QueryAsync<(string CustomerId, int CustomerKey)>(
-                "SELECT CustomerId, CustomerKey FROM Dim_Customer")).ToDictionary(x => x.CustomerId, x => x.CustomerKey);
+                // ── D. Sync Fact_Sales ─────────────────────────────────────
+                // Re-load key mappings to include newly inserted records
+                var customerMap = (await dwhConn.QueryAsync<(string CustomerId, int CustomerKey)>(
+                    "SELECT CustomerId, CustomerKey FROM Dim_Customer", transaction: transaction))
+                    .ToDictionary(x => x.CustomerId, x => x.CustomerKey);
 
-            var productMap = (await dwhConn.QueryAsync<(int ProductId, int ProductKey, decimal Cost)>(
-                "SELECT ProductId, ProductKey, ISNULL(Cost, 0) AS Cost FROM Dim_Product")).ToDictionary(x => x.ProductId, x => (x.ProductKey, x.Cost));
+                var productMap = (await dwhConn.QueryAsync<(int ProductId, int ProductKey, decimal Cost)>(
+                    "SELECT ProductId, ProductKey, ISNULL(Cost, 0) AS Cost FROM Dim_Product", transaction: transaction))
+                    .ToDictionary(x => x.ProductId, x => (x.ProductKey, x.Cost));
 
-            var guestCustomerKey = customerMap.TryGetValue("-1", out var gk) ? gk : -1;
+                var guestCustomerKey = customerMap.TryGetValue("-1", out var gk) ? gk : -1;
 
-            var activeOrders = orders.Where(o => o.Status != 4 && o.Status != 5).ToDictionary(o => o.Id);
-            var activeOrderItems = orderItems.Where(oi => activeOrders.ContainsKey(oi.OrderId)).ToList();
+                var existingFacts = (await dwhConn.QueryAsync<(int OrderId, int OrderDetailId, int SalesKey)>(
+                    "SELECT OrderId, OrderDetailId, SalesKey FROM Fact_Sales", transaction: transaction))
+                    .ToDictionary(x => (x.OrderId, x.OrderDetailId), x => x.SalesKey);
 
-            foreach (var oi in activeOrderItems)
-            {
-                var o = activeOrders[oi.OrderId];
-                int timeKey = int.Parse(o.CreatedAt.ToString("yyyyMMdd"));
+                var activeOrders = orders.Where(o => o.Status != 4 && o.Status != 5).ToDictionary(o => o.Id);
+                var activeOrderItems = orderItems.Where(oi => activeOrders.ContainsKey(oi.OrderId)).ToList();
 
-                int customerKey = (o.UserId != null && customerMap.TryGetValue(o.UserId, out var ck)) ? ck : guestCustomerKey;
-                
-                int productKey = -1;
-                decimal cost = oi.UnitPrice * 0.7m;
-                if (productMap.TryGetValue(oi.ProductId, out var pk))
+                var factsToInsert = new List<object>();
+                var factsToUpdate = new List<object>();
+
+                foreach (var oi in activeOrderItems)
                 {
-                    productKey = pk.ProductKey;
-                    cost = pk.Cost;
+                    var o = activeOrders[oi.OrderId];
+                    int timeKey = int.Parse(o.CreatedAt.ToString("yyyyMMdd"));
+
+                    int customerKey = (o.UserId != null && customerMap.TryGetValue(o.UserId, out var ck)) ? ck : guestCustomerKey;
+                    
+                    int productKey = -1;
+                    decimal cost = oi.UnitPrice * 0.7m;
+                    if (productMap.TryGetValue(oi.ProductId, out var pk))
+                    {
+                        productKey = pk.ProductKey;
+                        cost = pk.Cost;
+                    }
+
+                    decimal discountAmount = 0;
+                    if (o.TotalAmount > 0)
+                    {
+                        discountAmount = Math.Round((oi.Quantity * oi.UnitPrice * o.DiscountAmount) / o.TotalAmount, 2);
+                    }
+                    decimal totalAmount = oi.Quantity * oi.UnitPrice;
+                    decimal profit = totalAmount - discountAmount - (oi.Quantity * cost);
+
+                    var param = new {
+                        CustomerKey = customerKey,
+                        ProductKey = productKey,
+                        TimeKey = timeKey,
+                        OrderId = oi.OrderId,
+                        OrderDetailId = oi.Id,
+                        Quantity = oi.Quantity,
+                        UnitPrice = oi.UnitPrice,
+                        DiscountAmount = discountAmount,
+                        TotalAmount = totalAmount,
+                        Profit = profit
+                    };
+
+                    if (existingFacts.TryGetValue((oi.OrderId, oi.Id), out var salesKey))
+                    {
+                        factsToUpdate.Add(new {
+                            SalesKey = salesKey,
+                            CustomerKey = customerKey,
+                            ProductKey = productKey,
+                            TimeKey = timeKey,
+                            Quantity = oi.Quantity,
+                            UnitPrice = oi.UnitPrice,
+                            DiscountAmount = discountAmount,
+                            TotalAmount = totalAmount,
+                            Profit = profit
+                        });
+                    }
+                    else
+                    {
+                        factsToInsert.Add(param);
+                    }
                 }
 
-                decimal discountAmount = 0;
-                if (o.TotalAmount > 0)
+                if (factsToInsert.Any())
                 {
-                    discountAmount = Math.Round((oi.Quantity * oi.UnitPrice * o.DiscountAmount) / o.TotalAmount, 2);
+                    await dwhConn.ExecuteAsync(
+                        @"INSERT INTO Fact_Sales (CustomerKey, ProductKey, TimeKey, OrderId, OrderDetailId, Quantity, UnitPrice, DiscountAmount, TotalAmount, Profit) 
+                          VALUES (@CustomerKey, @ProductKey, @TimeKey, @OrderId, @OrderDetailId, @Quantity, @UnitPrice, @DiscountAmount, @TotalAmount, @Profit)", factsToInsert, transaction: transaction);
                 }
-                decimal totalAmount = oi.Quantity * oi.UnitPrice;
-                decimal profit = totalAmount - discountAmount - (oi.Quantity * cost);
 
-                var factExists = await dwhConn.ExecuteScalarAsync<int?>(
-                    "SELECT SalesKey FROM Fact_Sales WHERE OrderId = @OrderId AND OrderDetailId = @OrderDetailId", 
-                    new { OrderId = oi.OrderId, OrderDetailId = oi.Id });
-
-                var param = new {
-                    CustomerKey = customerKey,
-                    ProductKey = productKey,
-                    TimeKey = timeKey,
-                    OrderId = oi.OrderId,
-                    OrderDetailId = oi.Id,
-                    Quantity = oi.Quantity,
-                    UnitPrice = oi.UnitPrice,
-                    DiscountAmount = discountAmount,
-                    TotalAmount = totalAmount,
-                    Profit = profit
-                };
-
-                if (factExists.HasValue)
+                if (factsToUpdate.Any())
                 {
                     await dwhConn.ExecuteAsync(
                         @"UPDATE Fact_Sales SET 
                             CustomerKey = @CustomerKey, ProductKey = @ProductKey, TimeKey = @TimeKey, 
                             Quantity = @Quantity, UnitPrice = @UnitPrice, DiscountAmount = @DiscountAmount, 
                             TotalAmount = @TotalAmount, Profit = @Profit 
-                          WHERE SalesKey = @SalesKey", 
-                        new { SalesKey = factExists.Value, CustomerKey = param.CustomerKey, ProductKey = param.ProductKey, TimeKey = param.TimeKey, Quantity = param.Quantity, UnitPrice = param.UnitPrice, DiscountAmount = param.DiscountAmount, TotalAmount = param.TotalAmount, Profit = param.Profit });
+                          WHERE SalesKey = @SalesKey", factsToUpdate, transaction: transaction);
                 }
-                else
-                {
-                    await dwhConn.ExecuteAsync(
-                        @"INSERT INTO Fact_Sales (CustomerKey, ProductKey, TimeKey, OrderId, OrderDetailId, Quantity, UnitPrice, DiscountAmount, TotalAmount, Profit) 
-                          VALUES (@CustomerKey, @ProductKey, @TimeKey, @OrderId, @OrderDetailId, @Quantity, @UnitPrice, @DiscountAmount, @TotalAmount, @Profit)", param);
-                }
-            }
 
-            // Remove cancelled/refunded order items from DWH
-            var cancelledOrderIds = orders.Where(o => o.Status == 4 || o.Status == 5).Select(o => o.Id).ToList();
-            if (cancelledOrderIds.Any())
+                // Remove cancelled/refunded order items from DWH
+                var cancelledOrderIds = orders.Where(o => o.Status == 4 || o.Status == 5).Select(o => o.Id).ToList();
+                if (cancelledOrderIds.Any())
+                {
+                    await dwhConn.ExecuteAsync("DELETE FROM Fact_Sales WHERE OrderId IN @Ids", new { Ids = cancelledOrderIds }, transaction: transaction);
+                }
+
+                // Commit transaction if all succeeded
+                await transaction.CommitAsync();
+            }
+            catch
             {
-                await dwhConn.ExecuteAsync("DELETE FROM Fact_Sales WHERE OrderId IN @Ids", new { Ids = cancelledOrderIds });
+                await transaction.RollbackAsync();
+                throw;
             }
         }
     }
