@@ -11,19 +11,17 @@ namespace Web_HoaTuoi.Server.Controllers
     {
         private readonly string _dwhConnectionString;
         private readonly string _defaultConnectionString;
-        private readonly string _mainDbName;
+        private readonly Services.DwhSyncService _dwhSync;
 
-        public AnalyticsController(IConfiguration configuration)
+        public AnalyticsController(IConfiguration configuration, Services.DwhSyncService dwhSync)
         {
+            _dwhSync = dwhSync;
             _dwhConnectionString = DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null)?
                                       .Replace("Database=WebHoaTuoiDb", "Database=HoaTuoi_DWH")
                                       .Replace("database=WebHoaTuoiDb", "database=HoaTuoi_DWH") 
                                    ?? configuration.GetConnectionString("DwhConnection")!;
             _defaultConnectionString = DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null) 
                                        ?? configuration.GetConnectionString("DefaultConnection")!;
-            
-            var builder = new SqlConnectionStringBuilder(_defaultConnectionString);
-            _mainDbName = builder.InitialCatalog;
         }
 
         // Bổ sung endpoint lấy số lượng đơn hàng theo trạng thái phục vụ Dashboard
@@ -100,8 +98,7 @@ namespace Web_HoaTuoi.Server.Controllers
         {
             try
             {
-                using var connection = new SqlConnection(_dwhConnectionString);
-                await connection.ExecuteAsync("sp_ETL_Load_HoaTuoi_DWH", commandType: CommandType.StoredProcedure);
+                await _dwhSync.SyncAsync();
                 return Ok(new { success = true, message = "Đồng bộ dữ liệu phân tích (ETL) từ CSDL giao dịch sang DWH thành công!" });
             }
             catch (Exception ex)
@@ -115,19 +112,36 @@ namespace Web_HoaTuoi.Server.Controllers
         public IActionResult GetTopProducts()
         {
             using var connection = new SqlConnection(_dwhConnectionString);
-            var sql = $@"
+            var sql = @"
                 SELECT TOP 5 
                     dp.ProductId AS productId,
                     dp.ProductName AS productName,
-                    SUM(fs.Quantity) AS totalSold,
-                    ISNULL(p.MainImageUrl, '') AS mainImageUrl
+                    SUM(fs.Quantity) AS totalSold
                 FROM Fact_Sales fs
                 JOIN Dim_Product dp ON fs.ProductKey = dp.ProductKey
-                LEFT JOIN {_mainDbName}.dbo.Products p ON dp.ProductId = p.Id
-                GROUP BY dp.ProductId, dp.ProductName, p.MainImageUrl
+                GROUP BY dp.ProductId, dp.ProductName
                 ORDER BY totalSold DESC;";
             
-            var data = connection.Query(sql);
+            var data = connection.Query(sql).ToList();
+            
+            var productIds = data.Select(d => (int)d.productId).ToList();
+            if (productIds.Any())
+            {
+                using var mainConn = new SqlConnection(_defaultConnectionString);
+                var images = mainConn.Query<(int Id, string MainImageUrl)>(
+                    "SELECT Id, MainImageUrl FROM Products WHERE Id IN @Ids",
+                    new { Ids = productIds }
+                ).ToDictionary(p => p.Id, p => p.MainImageUrl);
+
+                var result = data.Select(d => new {
+                    productId = d.productId,
+                    productName = d.productName,
+                    totalSold = d.totalSold,
+                    mainImageUrl = images.TryGetValue((int)d.productId, out var img) ? img : ""
+                });
+                return Ok(result);
+            }
+
             return Ok(data);
         }
 

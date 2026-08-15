@@ -121,6 +121,7 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 builder.Services.AddTransient<IEmailSenderService, EmailSenderService>();
 
 builder.Services.AddScoped<Web_HoaTuoi.Server.Services.VectorDbService>();
+builder.Services.AddScoped<Web_HoaTuoi.Server.Services.DwhSyncService>();
 
 
 builder.Services.AddControllers()
@@ -225,13 +226,9 @@ using (var scope = app.Services.CreateScope())
                     // Tự động khởi tạo database và schema nếu chưa có
                     await EnsureDwhInitializedAsync(dwhConnStr);
 
-                    using var conn = new Microsoft.Data.SqlClient.SqlConnection(dwhConnStr);
-                    await conn.OpenAsync();
-                    using var cmd = conn.CreateCommand();
-                    cmd.CommandText = "sp_ETL_Load_HoaTuoi_DWH";
-                    cmd.CommandType = System.Data.CommandType.StoredProcedure;
-                    await cmd.ExecuteNonQueryAsync();
-                    Console.WriteLine("[Auto-Sync Startup] DWH ETL completed successfully.");
+                    var dwhSync = dwhScope.ServiceProvider.GetRequiredService<Web_HoaTuoi.Server.Services.DwhSyncService>();
+                    await dwhSync.SyncAsync();
+                    Console.WriteLine("[Auto-Sync Startup] DWH ETL completed successfully using C# Sync.");
                 }
             }
         }

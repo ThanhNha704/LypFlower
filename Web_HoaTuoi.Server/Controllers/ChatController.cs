@@ -26,13 +26,15 @@ namespace Web_HoaTuoi.Server.Controllers
         private readonly string _mongoConnString;
         private readonly string _geminiApiKey;
         private readonly IConfiguration _configuration;
+        private readonly Services.DwhSyncService _dwhSync;
 
-        public ChatController(AppDbContext db, VectorDbService vectorDb, IConfiguration configuration, IHttpClientFactory httpClientFactory)
+        public ChatController(AppDbContext db, VectorDbService vectorDb, IConfiguration configuration, IHttpClientFactory httpClientFactory, Services.DwhSyncService dwhSync)
         {
             _db = db;
             _vectorDb = vectorDb;
             _configuration = configuration;
             _httpClient = httpClientFactory.CreateClient();
+            _dwhSync = dwhSync;
 
             try { DotNetEnv.Env.Load(".env.local"); } catch { }
 
@@ -573,20 +575,8 @@ namespace Web_HoaTuoi.Server.Controllers
             // 1. Chạy quy trình ETL Data Warehouse đồng thời
             try
             {
-                var dwhConnStr = DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null)?
-                                    .Replace("Database=WebHoaTuoiDb", "Database=HoaTuoi_DWH")
-                                    .Replace("database=WebHoaTuoiDb", "database=HoaTuoi_DWH") 
-                                 ?? _configuration.GetConnectionString("DwhConnection");
-                if (!string.IsNullOrEmpty(dwhConnStr))
-                {
-                    using var conn = new Microsoft.Data.SqlClient.SqlConnection(dwhConnStr);
-                    await conn.OpenAsync();
-                    using var cmd = conn.CreateCommand();
-                    cmd.CommandText = "sp_ETL_Load_HoaTuoi_DWH";
-                    cmd.CommandType = System.Data.CommandType.StoredProcedure;
-                    await cmd.ExecuteNonQueryAsync();
-                    Console.WriteLine("[SyncVectorDb] DWH ETL completed successfully.");
-                }
+                await _dwhSync.SyncAsync();
+                Console.WriteLine("[SyncVectorDb] DWH ETL completed successfully using C# Sync.");
             }
             catch (Exception ex)
             {

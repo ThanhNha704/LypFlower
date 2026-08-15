@@ -14,33 +14,21 @@ public class ProductsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly Services.VectorDbService _vectorDb;
-    private readonly IConfiguration _configuration;
+    private readonly Services.DwhSyncService _dwhSync;
 
-    public ProductsController(AppDbContext db, Services.VectorDbService vectorDb, IConfiguration configuration)
+    public ProductsController(AppDbContext db, Services.VectorDbService vectorDb, Services.DwhSyncService dwhSync)
     {
         _db = db;
         _vectorDb = vectorDb;
-        _configuration = configuration;
+        _dwhSync = dwhSync;
     }
 
     private async Task RunDwhEtlAsync()
     {
         try
         {
-            var dwhConnStr = DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null)?
-                                .Replace("Database=WebHoaTuoiDb", "Database=HoaTuoi_DWH")
-                                .Replace("database=WebHoaTuoiDb", "database=HoaTuoi_DWH") 
-                             ?? _configuration.GetConnectionString("DwhConnection");
-            if (!string.IsNullOrEmpty(dwhConnStr))
-            {
-                using var conn = new Microsoft.Data.SqlClient.SqlConnection(dwhConnStr);
-                await conn.OpenAsync();
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = "sp_ETL_Load_HoaTuoi_DWH";
-                cmd.CommandType = System.Data.CommandType.StoredProcedure;
-                await cmd.ExecuteNonQueryAsync();
-                Console.WriteLine("[ProductsController Auto-ETL] DWH ETL completed successfully.");
-            }
+            await _dwhSync.SyncAsync();
+            Console.WriteLine("[ProductsController Auto-ETL] DWH ETL completed successfully using C# Sync.");
         }
         catch (Exception ex)
         {
