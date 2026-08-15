@@ -1,0 +1,187 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
+
+/* ── CSS Variables ─────────────────────────────────────── */
+:root {
+  --craft-cream:   #fdf8f0;
+  --craft-beige:   #f5ede0;
+  --craft-tan:     #e8d5bc;
+  --craft-amber:   #c8872a;
+  --craft-amber-d: #a86e1e;
+  --craft-brown:   #5c3d1e;
+  --craft-text:    #2d1f0e;
+  --craft-muted:   #8a6d50;
+}
+
+.dark {
+  --craft-cream:   #121212;
+  --craft-beige:   #1e1e1e;
+  --craft-tan:     #333333;
+  --craft-amber:   #d97706;
+  --craft-amber-d: #b45309;
+  --craft-brown:   #fde68a;
+  --craft-text:    #f5f5f5;
+  --craft-muted:   #a3a3a3;
+}
+
+@layer base {
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+min-width: 320px;
+    min-height: 100vh;
+    background-color: var(--craft-cream);
+    color: var(--craft-text);
+    font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 {
+ font-family: 'Playfair Display', serif;
+    line-height: 1.2;
+  }
+
+  h4, h5, h6 { line-height: 1.3; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--craft-beige); }
+::-webkit-scrollbar-thumb { background: var(--craft-amber); border-radius: 99px; }
+}
+
+@layer components {
+
+  .font-playfair {
+    font-family: 'Playfair Display', serif !important;
+  }
+
+  /* ── Inputs ── */
+  .input {
+  @apply w-full border border-stone-200 rounded-lg px-4 py-2.5 text-sm bg-white
+      focus:outline-none focus:ring-2 focus:border-transparent transition-all;
+    font-family: 'Be Vietnam Pro', sans-serif;
+    focus-ring-color: var(--craft-amber);
+  }
+  .input:focus { box-shadow: 0 0 0 2px rgba(200,135,42,0.25); border-color: var(--craft-amber); }
+
+  /* ── Buttons ── */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+      font-semibold rounded-full px-6 py-2.5 text-sm
+      transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    background-color: var(--craft-amber);
+ color: #fff;
+  }
+  .btn-primary:hover { background-color: var(--craft-amber-d); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(200,135,42,0.35); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2
+      font-semibold rounded-full px-6 py-2.5 text-sm transition-all duration-200;
+    border: 1.5px solid var(--craft-amber);
+    color: var(--craft-amber);
+    background: transparent;
+  }
+  .btn-outline:hover { background-color: var(--craft-beige); }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-1.5 text-sm font-semibold transition-colors;
+    color: var(--craft-amber);
+  }
+.btn-ghost:hover { color: var(--craft-amber-d); }
+
+  /* ── Section label (• THỦ CÔNG SUDES CRAFT) ── */
+  .section-label {
+    @apply flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest mb-1;
+    color: var(--craft-amber);
+  }
+  .section-label::before { content: '•'; font-size: 1.1rem; }
+
+  /* ── Section title ── */
+  .section-title {
+font-family: 'Playfair Display', serif;
+    @apply text-2xl md:text-3xl font-bold;
+    color: var(--craft-brown);
+  }
+
+  /* ── Card sản phẩm ── */
+  .product-card {
+    @apply bg-white rounded-2xl overflow-hidden transition-all duration-300;
+    border: 1px solid var(--craft-tan);
+  }
+  .product-card:hover { box-shadow: 0 8px 30px rgba(92,61,30,0.12); transform: translateY(-3px); }
+
+  /* ── Badge ── */
+  .badge-sale {
+  @apply absolute top-2.5 left-2.5 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide;
+    background-color: #d4460c;
+  }
+  .badge-new {
+    @apply absolute top-2.5 left-2.5 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide;
+    background-color: #2d8a4e;
+  }
+
+  /* ── Admin sidebar ── */
+  .admin-nav-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors;
+    color: #6b5744;
+  }
+  .admin-nav-link:hover { background-color: var(--craft-beige); color: var(--craft-brown); }
+  .admin-nav-link.active { background-color: var(--craft-tan); color: var(--craft-brown); font-weight: 600; }
+}
+
+/* ── Animations ─────────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeInUp { animation: fadeInUp 0.45s ease both; }
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #ede8e0 25%, #f5f0e8 50%, #ede8e0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 12px;
+}
+
+/* ── Hero Float animation ───────────────── */
+@keyframes heroFloat {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-10px); }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #print-area, #print-area * {
+    visibility: visible;
+  }
+  #print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20px;
+    box-shadow: none !important;
+  }
+  .print-hide {
+    display: none !important;
+  }
+  .print-bg-transparent {
+    background: transparent !important;
+  }
+  @page {
+    size: auto;
+    margin: 10mm;
+  }
+}

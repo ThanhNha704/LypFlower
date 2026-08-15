@@ -1,0 +1,33 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36616.10 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "web_hoatuoi.client", "web_HoaTuoi.client\web_hoatuoi.client.esproj", "{BE0F8646-35F7-6732-4517-AAA816881AD1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Web_hoatuoi.Server", "Web_HoaTuoi.Server\Web_hoatuoi.Server.csproj", "{D299B05E-C4FF-4B1A-81F5-13563FA813E1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BE0F8646-35F7-6732-4517-AAA816881AD1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BE0F8646-35F7-6732-4517-AAA816881AD1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BE0F8646-35F7-6732-4517-AAA816881AD1}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{BE0F8646-35F7-6732-4517-AAA816881AD1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BE0F8646-35F7-6732-4517-AAA816881AD1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BE0F8646-35F7-6732-4517-AAA816881AD1}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{D299B05E-C4FF-4B1A-81F5-13563FA813E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D299B05E-C4FF-4B1A-81F5-13563FA813E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D299B05E-C4FF-4B1A-81F5-13563FA813E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D299B05E-C4FF-4B1A-81F5-13563FA813E1}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4E068DD0-7167-4AEA-B59C-5E90E2A178B9}
+	EndGlobalSection
+EndGlobal
