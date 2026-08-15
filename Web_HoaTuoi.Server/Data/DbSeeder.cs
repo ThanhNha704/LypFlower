@@ -26,13 +26,19 @@ public static class DbSeeder
         {
             Console.WriteLine($"[DB Auto-Repair Error] {ex.Message}");
         }
-        // Ưu tiên khôi phục toàn bộ dữ liệu gốc từ tệp sql_data/webhoatuoidb_data.sql nếu database trống
+        // Ưu tiên khôi phục toàn bộ dữ liệu gốc từ tệp sql_data/webhoatuoidb_data.sql hoặc thư mục publish nếu database trống
         if (!await db.Categories.AnyAsync())
         {
-            var sqlPath = Path.Combine(FindSqlDataDir(), "webhoatuoidb_data.sql");
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var sqlPath = Path.Combine(baseDir, "Data", "webhoatuoidb_data.sql");
+            if (!File.Exists(sqlPath))
+            {
+                sqlPath = Path.Combine(FindSqlDataDir(), "webhoatuoidb_data.sql");
+            }
+
             if (File.Exists(sqlPath))
             {
-                await SeedFromSqlFileAsync(db);
+                await SeedFromSqlFileAsync(db, sqlPath);
                 return;
             }
         }
@@ -197,12 +203,11 @@ public static class DbSeeder
         await db.SaveChangesAsync();
     }
 
-    public static async Task SeedFromSqlFileAsync(AppDbContext db)
+    public static async Task SeedFromSqlFileAsync(AppDbContext db, string sqlPath)
     {
-        var sqlPath = Path.Combine(FindSqlDataDir(), "webhoatuoidb_data.sql");
         if (!File.Exists(sqlPath)) return;
 
-        Console.WriteLine("[DB Seeder] Tim thay tep webhoatuoidb_data.sql. Dang tien hanh khoi phuc du lieu tu dong...");
+        Console.WriteLine($"[DB Seeder] Tim thay tep {sqlPath}. Dang tien hanh khoi phuc du lieu tu dong...");
         
         var script = await File.ReadAllTextAsync(sqlPath);
         var commands = System.Text.RegularExpressions.Regex.Split(
