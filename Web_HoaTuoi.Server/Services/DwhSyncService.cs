@@ -174,7 +174,7 @@ namespace Web_HoaTuoi.Server.Services
                 decimal profit = totalAmount - discountAmount - (oi.Quantity * cost);
 
                 var factExists = await dwhConn.ExecuteScalarAsync<int?>(
-                    "SELECT FactKey FROM Fact_Sales WHERE OrderId = @OrderId AND OrderDetailId = @OrderDetailId", 
+                    "SELECT SalesKey FROM Fact_Sales WHERE OrderId = @OrderId AND OrderDetailId = @OrderDetailId", 
                     new { OrderId = oi.OrderId, OrderDetailId = oi.Id });
 
                 var param = new {
@@ -197,8 +197,8 @@ namespace Web_HoaTuoi.Server.Services
                             CustomerKey = @CustomerKey, ProductKey = @ProductKey, TimeKey = @TimeKey, 
                             Quantity = @Quantity, UnitPrice = @UnitPrice, DiscountAmount = @DiscountAmount, 
                             TotalAmount = @TotalAmount, Profit = @Profit 
-                          WHERE FactKey = @FactKey", 
-                        new { FactKey = factExists.Value, CustomerKey = param.CustomerKey, ProductKey = param.ProductKey, TimeKey = param.TimeKey, Quantity = param.Quantity, UnitPrice = param.UnitPrice, DiscountAmount = param.DiscountAmount, TotalAmount = param.TotalAmount, Profit = param.Profit });
+                          WHERE SalesKey = @SalesKey", 
+                        new { SalesKey = factExists.Value, CustomerKey = param.CustomerKey, ProductKey = param.ProductKey, TimeKey = param.TimeKey, Quantity = param.Quantity, UnitPrice = param.UnitPrice, DiscountAmount = param.DiscountAmount, TotalAmount = param.TotalAmount, Profit = param.Profit });
                 }
                 else
                 {
