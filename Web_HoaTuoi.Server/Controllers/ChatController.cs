@@ -27,6 +27,7 @@ namespace Web_HoaTuoi.Server.Controllers
         private readonly string _geminiApiKey;
         private readonly IConfiguration _configuration;
         private readonly Services.DwhSyncService _dwhSync;
+        private static bool _isSyncing = false;
 
         public ChatController(AppDbContext db, VectorDbService vectorDb, IConfiguration configuration, IHttpClientFactory httpClientFactory, Services.DwhSyncService dwhSync)
         {
@@ -564,7 +565,8 @@ namespace Web_HoaTuoi.Server.Controllers
             {
                 sqlCount,
                 mongoCount,
-                isSynced = sqlCount == mongoCount
+                isSynced = sqlCount == mongoCount,
+                isSyncing = _isSyncing
             });
         }
 
@@ -572,6 +574,13 @@ namespace Web_HoaTuoi.Server.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> SyncVectorDb()
         {
+            if (_isSyncing)
+            {
+                return BadRequest(new { message = "Tiến trình đồng bộ hiện tại đang chạy." });
+            }
+
+            _isSyncing = true;
+
             // Chạy tiến trình đồng bộ ngầm để tránh lỗi Timeout 30 giây của trình duyệt/proxy
             _ = Task.Run(async () =>
             {
@@ -596,9 +605,13 @@ namespace Web_HoaTuoi.Server.Controllers
                 {
                     Console.WriteLine($"[SyncVectorDb] Đồng bộ MongoDB Vector DB thất bại: {ex.Message}");
                 }
+                finally
+                {
+                    _isSyncing = false;
+                }
             });
 
-            return Ok(new { message = "Tiến trình đồng bộ đang được chạy ngầm dưới máy chủ. Khi nào xong hệ thống sẽ tự cập nhật số lượng khớp nhau." });
+            return Ok(new { message = "Bắt đầu tiến trình đồng bộ ngầm dưới máy chủ..." });
         }
     }
 }

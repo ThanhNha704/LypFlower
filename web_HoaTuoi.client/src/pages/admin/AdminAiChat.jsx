@@ -20,7 +20,7 @@ export default function AdminAiChat() {
   const [savingSettings, setSavingSettings] = useState(false);
 
   // Tab Sync states
-  const [dbStatus, setDbStatus] = useState({ sqlCount: 0, mongoCount: 0, isSynced: true });
+  const [dbStatus, setDbStatus] = useState({ sqlCount: 0, mongoCount: 0, isSynced: true, isSyncing: false });
   const [syncing, setSyncing] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(false);
 
@@ -36,6 +36,30 @@ export default function AdminAiChat() {
       fetchDbStatus();
     }
   }, [activeTab, historyPage]);
+
+  // 1.2 Tự động thăm dò trạng thái đồng bộ nếu máy chủ đang chạy ngầm
+  useEffect(() => {
+    let intervalId;
+    const isCurrentlySyncing = syncing || dbStatus.isSyncing || (!dbStatus.isSynced && dbStatus.sqlCount > 0 && dbStatus.mongoCount < dbStatus.sqlCount);
+
+    if (activeTab === "sync" && isCurrentlySyncing) {
+      intervalId = setInterval(() => {
+        apiClient.get("/chat/vectordb/status")
+          .then(res => {
+            setDbStatus(res.data);
+            if (res.data.isSynced && !res.data.isSyncing) {
+              setSyncing(false);
+              toast.success("Đồng bộ dữ liệu sản phẩm thành công!");
+            }
+          })
+          .catch(() => {});
+      }, 2000);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [activeTab, syncing, dbStatus.isSyncing, dbStatus.isSynced, dbStatus.sqlCount, dbStatus.mongoCount]);
 
   // Fetch Chat Sessions
   const fetchSessions = () => {
@@ -111,11 +135,11 @@ export default function AdminAiChat() {
     setSyncing(true);
     try {
       const res = await apiClient.post("/chat/vectordb/sync");
-      toast.success(res.data.message || "Đồng bộ VectorDB thành công!");
-      fetchDbStatus();
+      toast.success(res.data.message || "Đã bắt đầu đồng bộ dữ liệu ngầm!");
+      // Gọi cập nhật trạng thái ngay lập tức
+      apiClient.get("/chat/vectordb/status").then(r => setDbStatus(r.data));
     } catch {
-      toast.error("Lỗi trong quá trình đồng bộ VectorDB");
-    } finally {
+      toast.error("Lỗi khi khởi chạy đồng bộ VectorDB");
       setSyncing(false);
     }
   };
@@ -373,13 +397,17 @@ export default function AdminAiChat() {
             <div className="pt-2">
               <button
                 onClick={handleRunSync}
-                disabled={syncing}
-                className="btn-primary flex items-center gap-2 max-w-xs font-bold text-xs py-3 w-full animate-none"
+                disabled={syncing || dbStatus.isSyncing}
+                className="btn-primary flex items-center justify-center gap-2 max-w-xs font-bold text-xs py-3 w-full animate-none"
               >
-                <RefreshCw size={16} className={syncing ? "animate-spin" : ""} />
-                {syncing ? "Đang đồng bộ..." : "Đồng bộ thủ công ngay"}
+                <RefreshCw size={16} className={(syncing || dbStatus.isSyncing) ? "animate-spin" : ""} />
+                {(syncing || dbStatus.isSyncing) 
+                  ? `Đang đồng bộ... (${dbStatus.mongoCount}/${dbStatus.sqlCount})` 
+                  : "Đồng bộ thủ công ngay"}
               </button>
-              <p className="text-[10px] text-gray-400 mt-2 font-medium">Quá trình này có thể mất vài phút tùy vào số lượng sản phẩm cần tạo embedding qua Gemini API (giới hạn 0.5s/sản phẩm).</p>
+              <p className="text-[10px] text-gray-400 mt-2 font-medium">
+                Quá trình này chạy ngầm dưới máy chủ giúp tránh lỗi timeout. Số lượng sản phẩm trên MongoDB sẽ được cập nhật liên tục trên màn hình cho đến khi hoàn tất.
+              </p>
             </div>
           </div>
         )}
