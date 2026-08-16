@@ -355,7 +355,7 @@ export default function AdminAiChat() {
               {/* SQL Server Stats */}
               <div className="border border-slate-100 rounded-2xl p-5 flex flex-col justify-between">
                 <div>
-                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide">SQL Server (Localhost)</h4>
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide">SQL Server (WebHoaTuoiDb)</h4>
                   <p className="text-2xl font-black text-gray-900 mt-2">{dbStatus.sqlCount} sản phẩm</p>
                 </div>
                 <p className="text-[10px] text-gray-400 mt-4">Số lượng sản phẩm hoa đang kích hoạt hoạt động trong cơ sở dữ liệu quan hệ chính.</p>

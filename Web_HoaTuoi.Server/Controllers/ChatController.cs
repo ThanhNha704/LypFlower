@@ -27,15 +27,23 @@ namespace Web_HoaTuoi.Server.Controllers
         private readonly string _geminiApiKey;
         private readonly IConfiguration _configuration;
         private readonly Services.DwhSyncService _dwhSync;
+        private readonly Microsoft.Extensions.DependencyInjection.IServiceScopeFactory _scopeFactory;
         private static bool _isSyncing = false;
 
-        public ChatController(AppDbContext db, VectorDbService vectorDb, IConfiguration configuration, IHttpClientFactory httpClientFactory, Services.DwhSyncService dwhSync)
+        public ChatController(
+            AppDbContext db, 
+            VectorDbService vectorDb, 
+            IConfiguration configuration, 
+            IHttpClientFactory httpClientFactory, 
+            Services.DwhSyncService dwhSync,
+            Microsoft.Extensions.DependencyInjection.IServiceScopeFactory scopeFactory)
         {
             _db = db;
             _vectorDb = vectorDb;
             _configuration = configuration;
             _httpClient = httpClientFactory.CreateClient();
             _dwhSync = dwhSync;
+            _scopeFactory = scopeFactory;
 
             try { DotNetEnv.Env.Load(".env.local"); } catch { }
 
@@ -581,13 +589,17 @@ namespace Web_HoaTuoi.Server.Controllers
 
             _isSyncing = true;
 
-            // Chạy tiến trình đồng bộ ngầm để tránh lỗi Timeout 30 giây của trình duyệt/proxy
+            // Chạy tiến trình đồng bộ ngầm với Scope độc lập để tránh lỗi Disposed Context
             _ = Task.Run(async () =>
             {
+                using var scope = _scopeFactory.CreateScope();
+                var dwhSync = scope.ServiceProvider.GetRequiredService<Services.DwhSyncService>();
+                var vectorDb = scope.ServiceProvider.GetRequiredService<VectorDbService>();
+
                 try
                 {
                     Console.WriteLine("[SyncVectorDb] Bắt đầu đồng bộ DWH ETL...");
-                    await _dwhSync.SyncAsync();
+                    await dwhSync.SyncAsync();
                     Console.WriteLine("[SyncVectorDb] Đồng bộ DWH ETL hoàn tất.");
                 }
                 catch (Exception ex)
@@ -598,7 +610,7 @@ namespace Web_HoaTuoi.Server.Controllers
                 try
                 {
                     Console.WriteLine("[SyncVectorDb] Bắt đầu đồng bộ MongoDB Vector DB...");
-                    var count = await _vectorDb.SyncAllProductsToVectorDbAsync();
+                    var count = await vectorDb.SyncAllProductsToVectorDbAsync();
                     Console.WriteLine($"[SyncVectorDb] Đồng bộ MongoDB Vector DB hoàn tất. Số lượng sản phẩm đã xử lý: {count}");
                 }
                 catch (Exception ex)
