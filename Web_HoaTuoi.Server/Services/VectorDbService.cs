@@ -88,37 +88,59 @@ namespace Web_HoaTuoi.Server.Services
         {
             if (string.IsNullOrWhiteSpace(_geminiApiKey)) return null;
 
-            try
+            int maxRetries = 5;
+            int retryDelayMs = 10000; // Chờ 10 giây ban đầu nếu gặp lỗi 429
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
-                string geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key={_geminiApiKey}";
-
-                var requestBody = new
+                try
                 {
-                    model = "models/gemini-embedding-001",
-                    content = new { parts = new[] { new { text = text } } }
-                };
+                    string geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key={_geminiApiKey}";
 
-                var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                var response = await _httpClient.PostAsync(geminiUrl, jsonContent, cts.Token);
-
-                if (!response.IsSuccessStatusCode) return null;
-
-                using var jsonDoc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cts.Token));
-                if (jsonDoc.RootElement.TryGetProperty("embedding", out var embedding) &&
-                    embedding.TryGetProperty("values", out var values))
-                {
-                    List<float> vectorList = new();
-                    foreach (var val in values.EnumerateArray())
+                    var requestBody = new
                     {
-                        vectorList.Add(val.GetSingle());
+                        model = "models/gemini-embedding-001",
+                        content = new { parts = new[] { new { text = text } } }
+                    };
+
+                    var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    var response = await _httpClient.PostAsync(geminiUrl, jsonContent, cts.Token);
+
+                    // Xử lý lỗi Rate Limit 429
+                    if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                    {
+                        Console.WriteLine($"[Gemini API] Bị giới hạn tần suất (429) ở lần thử {attempt}. Tự động thử lại sau {retryDelayMs / 1000} giây...");
+                        await Task.Delay(retryDelayMs);
+                        retryDelayMs *= 2; // Tăng gấp đôi thời gian chờ cho lần sau
+                        continue;
                     }
-                    return vectorList;
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var errorMsg = await response.Content.ReadAsStringAsync();
+                        Console.WriteLine($"[Gemini API Lỗi] HTTP {response.StatusCode}: {errorMsg}");
+                        return null;
+                    }
+
+                    using var jsonDoc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cts.Token));
+                    if (jsonDoc.RootElement.TryGetProperty("embedding", out var embedding) &&
+                        embedding.TryGetProperty("values", out var values))
+                    {
+                        List<float> vectorList = new();
+                        foreach (var val in values.EnumerateArray())
+                        {
+                            vectorList.Add(val.GetSingle());
+                        }
+                        return vectorList;
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[VectorDbService Gemini Embedding Error]: {ex.Message}");
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Gemini API Lỗi mạng lần {attempt}]: {ex.Message}");
+                    if (attempt == maxRetries) return null;
+                    await Task.Delay(2000);
+                }
             }
 
             return null;
