@@ -239,9 +239,48 @@ namespace Web_HoaTuoi.Server.Services
                 Console.WriteLine($"[VectorDbSync Warning] Không thể dọn dẹp sản phẩm thừa: {ex.Message}");
             }
 
-            // 2. Đồng bộ các sản phẩm đang hoạt động
+            // 2. Lấy danh sách ID sản phẩm đã được đồng bộ trong MongoDB để tránh làm lại các sản phẩm cũ
+            var existingProducts = new Dictionary<int, DateTime>();
+            try
+            {
+                var collection = GetMongoCollection();
+                var projection = Builders<FlowerEmbeddingDocument>.Projection
+                    .Include(f => f.ProductId)
+                    .Include(f => f.UpdatedAt);
+                
+                var docs = await collection.Find(new BsonDocument())
+                    .Project(projection)
+                    .ToListAsync();
+
+                foreach (var doc in docs)
+                {
+                    int pid = doc["ProductId"].AsInt32;
+                    DateTime updated = doc.Contains("UpdatedAt") ? doc["UpdatedAt"].ToUniversalTime() : DateTime.MinValue;
+                    existingProducts[pid] = updated;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[VectorDbSync Read] Lỗi đọc danh sách sản phẩm hiện có từ MongoDB: {ex.Message}");
+            }
+
+            // 3. Lọc danh sách sản phẩm cần đồng bộ (chưa có trong MongoDB hoặc ngày cập nhật mới hơn)
+            var productsToSync = new List<Product>();
+            foreach (var p in activeProducts)
+            {
+                if (!existingProducts.TryGetValue(p.Id, out var mongoUpdated))
+                {
+                    productsToSync.Add(p);
+                }
+                else if (p.UpdatedAt > mongoUpdated)
+                {
+                    productsToSync.Add(p);
+                }
+            }
+
+            // 4. Đồng bộ các sản phẩm đang cần cập nhật
             int count = 0;
-            foreach (var product in activeProducts)
+            foreach (var product in productsToSync)
             {
                 try
                 {

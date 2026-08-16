@@ -572,21 +572,33 @@ namespace Web_HoaTuoi.Server.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> SyncVectorDb()
         {
-            // 1. Chạy quy trình ETL Data Warehouse đồng thời
-            try
+            // Chạy tiến trình đồng bộ ngầm để tránh lỗi Timeout 30 giây của trình duyệt/proxy
+            _ = Task.Run(async () =>
             {
-                await _dwhSync.SyncAsync();
-                Console.WriteLine("[SyncVectorDb] DWH ETL completed successfully using C# Sync.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[SyncVectorDb] DWH ETL failed: {ex.Message}");
-                // Vẫn tiếp tục đồng bộ sang Vector DB cho dù DWH ETL có bị lỗi
-            }
+                try
+                {
+                    Console.WriteLine("[SyncVectorDb] Bắt đầu đồng bộ DWH ETL...");
+                    await _dwhSync.SyncAsync();
+                    Console.WriteLine("[SyncVectorDb] Đồng bộ DWH ETL hoàn tất.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[SyncVectorDb] Đồng bộ DWH ETL thất bại: {ex.Message}");
+                }
 
-            // 2. Đồng bộ Vector Database (MongoDB Atlas)
-            var count = await _vectorDb.SyncAllProductsToVectorDbAsync();
-            return Ok(new { message = "Đồng bộ thành công dữ liệu sản phẩm lên Data Warehouse và Vector Database.", count });
+                try
+                {
+                    Console.WriteLine("[SyncVectorDb] Bắt đầu đồng bộ MongoDB Vector DB...");
+                    var count = await _vectorDb.SyncAllProductsToVectorDbAsync();
+                    Console.WriteLine($"[SyncVectorDb] Đồng bộ MongoDB Vector DB hoàn tất. Số lượng sản phẩm đã xử lý: {count}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[SyncVectorDb] Đồng bộ MongoDB Vector DB thất bại: {ex.Message}");
+                }
+            });
+
+            return Ok(new { message = "Tiến trình đồng bộ đang được chạy ngầm dưới máy chủ. Khi nào xong hệ thống sẽ tự cập nhật số lượng khớp nhau." });
         }
     }
 }
