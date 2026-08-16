@@ -24,16 +24,16 @@ namespace Web_HoaTuoi.Server.Services
         {
             try
             {
-                // Gửi qua HTTP API của Resend (cổng 443 - không bị Render chặn)
-                var request = new HttpRequestMessage(HttpMethod.Post, "https://api.resend.com/emails");
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _emailSettings.SenderPassword);
+                // Gửi qua HTTP API của Brevo (Sendinblue) - Cổng 443 không bị Render chặn
+                var request = new HttpRequestMessage(HttpMethod.Post, "https://api.brevo.com/v3/smtp/email");
+                request.Headers.Add("api-key", _emailSettings.SenderPassword); // Khóa API Key của Brevo lưu trong SenderPassword
 
                 var payload = new
                 {
-                    from = _emailSettings.SenderEmail, // E.g., "onboarding@resend.dev"
-                    to = new[] { email },
+                    sender = new { name = _emailSettings.SenderName ?? "LypFlower", email = _emailSettings.SenderEmail }, // Email người gửi đã xác thực trên Brevo
+                    to = new[] { new { email = email } },
                     subject = subject,
-                    html = message
+                    htmlContent = message
                 };
 
                 var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
@@ -43,12 +43,12 @@ namespace Web_HoaTuoi.Server.Services
                 if (!response.IsSuccessStatusCode)
                 {
                     var error = await response.Content.ReadAsStringAsync();
-                    throw new Exception($"Lỗi gửi mail qua Resend API: {error}");
+                    throw new Exception($"Lỗi gửi mail qua Brevo API: {error}");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Email Error]: {ex.Message}");
+                Console.WriteLine($"[Brevo Email Error]: {ex.Message}");
                 throw;
             }
         }
