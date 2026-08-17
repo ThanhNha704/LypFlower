@@ -89,23 +89,27 @@ namespace Web_HoaTuoi.Server.Services
             }
 
             // ── C. Bulk Insert Dim_Time ───────────────────────────────
-            var orderDates = orders.Select(o => o.CreatedAt.Date).Distinct().ToList();
             var timesToInsert = new List<(int TimeKey, DateTime FullDate, int Day, int Month, string MonthName, int Quarter, int Year, string DayOfWeek, int IsWeekend)>();
+            var seenTimeKeys = new HashSet<int>();
 
-            foreach (var date in orderDates)
+            foreach (var o in orders)
             {
-                int timeKey = int.Parse(date.ToString("yyyyMMdd"));
-                timesToInsert.Add((
-                    timeKey,
-                    date,
-                    date.Day,
-                    date.Month,
-                    date.ToString("MMMM", System.Globalization.CultureInfo.InvariantCulture),
-                    (date.Month - 1) / 3 + 1,
-                    date.Year,
-                    date.DayOfWeek.ToString(),
-                    (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday) ? 1 : 0
-                ));
+                int timeKey = int.Parse(o.CreatedAt.ToString("yyyyMMdd"));
+                if (seenTimeKeys.Add(timeKey))
+                {
+                    var date = o.CreatedAt.Date;
+                    timesToInsert.Add((
+                        timeKey,
+                        date,
+                        date.Day,
+                        date.Month,
+                        date.ToString("MMMM", System.Globalization.CultureInfo.InvariantCulture),
+                        (date.Month - 1) / 3 + 1,
+                        date.Year,
+                        date.DayOfWeek.ToString(),
+                        (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday) ? 1 : 0
+                    ));
+                }
             }
 
             if (timesToInsert.Any())
