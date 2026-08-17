@@ -1,6 +1,7 @@
 // src/store/cartStore.js
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import toast from 'react-hot-toast';
 
 export const useCartStore = create(
   persist(
@@ -14,15 +15,26 @@ export const useCartStore = create(
         const effectivePrice = product.promotionalPrice
           ?? (product.salePrice ?? product.price);
 
+        const stockLimit = product.stock ?? 999;
+
         if (existing) {
+          const newQty = existing.quantity + quantity;
+          if (newQty > stockLimit) {
+            toast.error(`Không thể thêm! Cửa hàng chỉ còn ${stockLimit} sản phẩm.`);
+            return;
+          }
           set({
             items: items.map(i =>
               i.productId === product.id
-                ? { ...i, quantity: i.quantity + quantity }
+                ? { ...i, quantity: newQty }
                 : i
             ),
           });
         } else {
+          if (quantity > stockLimit) {
+            toast.error(`Không thể thêm! Cửa hàng chỉ còn ${stockLimit} sản phẩm.`);
+            return;
+          }
           set({
             items: [...items, {
               productId: product.id,
@@ -32,16 +44,28 @@ export const useCartStore = create(
               originalPrice: product.price,         // Giá gốc để hiển thị gạch ngang
               promotionalPrice: product.promotionalPrice ?? null,
               quantity,
+              stock: stockLimit, // Save stock inside cart item for validation
             }],
           });
         }
       },
 
       updateQuantity: (productId, quantity) => {
+        const items = get().items;
+        const item = items.find(i => i.productId === productId);
+        if (!item) return;
+
         if (quantity <= 0) {
-          set({ items: get().items.filter(i => i.productId !== productId) });
+          set({ items: items.filter(i => i.productId !== productId) });
         } else {
-          set({ items: get().items.map(i => i.productId === productId ? { ...i, quantity } : i) });
+          const stockLimit = item.stock ?? 999;
+          if (quantity > stockLimit) {
+            toast.error(`Cửa hàng chỉ còn ${stockLimit} sản phẩm.`);
+            // Cap it at stock limit
+            set({ items: items.map(i => i.productId === productId ? { ...i, quantity: stockLimit } : i) });
+          } else {
+            set({ items: items.map(i => i.productId === productId ? { ...i, quantity } : i) });
+          }
         }
       },
 

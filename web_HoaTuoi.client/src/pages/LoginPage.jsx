@@ -40,7 +40,7 @@ export default function LoginPage() {
 
     async function handleSubmit(e) {
         e.preventDefault()
-        
+
         // Basic Validation
         if (isRegister) {
             if (form.password.length < 6) {
@@ -65,13 +65,13 @@ export default function LoginPage() {
                     form.phone,
                     form.address
                 )
-                
+
                 toast.success("Đăng ký thành công! Đang chuyển sang trang đăng nhập...")
-                
+
                 // Clear password but KEEP email for login
                 setForm(prev => ({ ...prev, password: "" }))
                 setIsRegister(false)
-                
+
                 // Delay a bit for better transition feel
                 setTimeout(() => {
                     navigate("/dang-nhap" + location.search, { replace: true })
@@ -106,8 +106,12 @@ export default function LoginPage() {
         try {
             const data = await authApi.googleLogin(credentialResponse.credential)
             login(data)
-            toast.success("Đăng nhập Google thành công")
-            
+            if (data.isNewUser) {
+                toast.success("Tạo tài khoản Google thành công! 🎉")
+            } else {
+                toast.success("Chào mừng bạn quay trở lại! 🌸")
+            }
+
             let defaultRedirect = "/";
             if (data.user?.role === "Admin") defaultRedirect = "/admin";
             else if (data.user?.role === "Staff") defaultRedirect = "/nhan-vien";
@@ -126,7 +130,7 @@ export default function LoginPage() {
         <div className="min-h-screen relative flex items-center justify-center overflow-hidden font-inter p-4">
             <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
             {/* Background */}
-            <div 
+            <div
                 className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat scale-105"
                 style={{ backgroundImage: `url('/src/assets/flower_login_bg.png')` }}
             >
@@ -134,8 +138,7 @@ export default function LoginPage() {
             </div>
 
             <div className="relative z-10 w-full max-w-[380px]">
-                <div className="bg-white/90 backdrop-blur-3xl p-5 md:p-6 rounded-[1.5rem] shadow-[0_25px_60px_rgba(255,182,193,0.2)] border border-white/60">
-                    
+                <div className="bg-white/90 backdrop-blur-3xl p-5 md:p-6 rounded-[1.5rem] shadow-[0_25px_60px_rgba(255,182,193,0.2)] border border-white/60 relative">
                     {/* Header - Pro Style */}
                     <div className="text-center mb-5 flex items-center justify-center gap-3">
                         <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-400 text-white rounded-xl shadow-lg flex items-center justify-center scale-90 group-hover:scale-100 transition-transform">
@@ -225,8 +228,8 @@ export default function LoginPage() {
                             <div className="flex justify-between items-center px-1">
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mật khẩu</label>
                                 {!isRegister && (
-                                    <button 
-                                        type="button" 
+                                    <button
+                                        type="button"
                                         onClick={() => navigate("/quen-mat-khau")}
                                         className="text-[9px] font-bold text-pink-500 uppercase hover:text-pink-600"
                                     >
@@ -244,7 +247,7 @@ export default function LoginPage() {
                                     className="w-full px-3.5 py-2.5 bg-white border border-pink-50 rounded-xl focus:ring-2 focus:ring-pink-100 focus:border-pink-300 outline-none transition-all text-sm font-medium pr-10"
                                     required
                                 />
-                                <button 
+                                <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
                                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
@@ -298,11 +301,12 @@ export default function LoginPage() {
                         </p>
                     </div>
                 </div>
-                
+
 
             </div>
 
-            <style dangerouslySetInnerHTML={{ __html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 @keyframes fade-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
                 .animate-fade-in { animation: fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
             `}} />

@@ -46,7 +46,9 @@ import StaffDashboard from './pages/staff/StaffDashboard'
 import AdminAiChat from './pages/admin/AdminAiChat'
 
 
+// const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
+  || '964229649648-sh6dkl685l5731kf5q2clprkkdt6sqv9.apps.googleusercontent.com'
 
 export default function App() {
     const initTheme = useThemeStore((s) => s.initTheme)

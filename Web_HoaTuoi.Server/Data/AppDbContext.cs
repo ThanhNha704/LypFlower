@@ -25,6 +25,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<UserAddress> UserAddresses => Set<UserAddress>();
     public DbSet<ChatSession> ChatSessions => Set<ChatSession>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<InventoryImport> InventoryImports => Set<InventoryImport>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -82,7 +83,16 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
 
 
-// ── WishlistItem ──────────────────────────────────────
+        // ── InventoryImport ───────────────────────────────────────
+        builder.Entity<InventoryImport>()
+            .Property(i => i.ImportPrice).HasPrecision(18, 2);
+        builder.Entity<InventoryImport>()
+            .HasOne(i => i.Product)
+            .WithMany()
+            .HasForeignKey(i => i.ProductId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+// ── WishlistItem ──────────────────────────────────────────────
      builder.Entity<WishlistItem>()
             .HasIndex(w => new { w.UserId, w.ProductId }).IsUnique();
 

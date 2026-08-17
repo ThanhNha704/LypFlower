@@ -39,14 +39,40 @@ export default function CartPage() {
                 <p className="text-sm font-semibold text-gray-800 line-clamp-2">{item.productName}</p>
                 <p className="text-pink-600 font-bold mt-1">{formatVnd(item.unitPrice)}</p>
               </div>
-              <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
-                <button onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                  className="w-9 h-9 flex items-center justify-center hover:bg-gray-50">
+              <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden bg-white">
+                <button 
+                  onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                  disabled={item.quantity <= 1}
+                  className="w-9 h-9 flex items-center justify-center hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                >
                   <Minus size={14} />
                 </button>
-                <span className="w-9 text-center text-sm font-semibold">{item.quantity}</span>
-                <button onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                  className="w-9 h-9 flex items-center justify-center hover:bg-gray-50">
+                <input
+                  type="number"
+                  min="1"
+                  max={item.stock || 999}
+                  value={item.quantity}
+                  onChange={e => {
+                    const val = parseInt(e.target.value, 10);
+                    if (isNaN(val) || val <= 0) {
+                      // Allow empty input temporarily but fallback on blur
+                    } else {
+                      updateQuantity(item.productId, val);
+                    }
+                  }}
+                  onBlur={e => {
+                    const val = parseInt(e.target.value, 10);
+                    if (isNaN(val) || val <= 0) {
+                      updateQuantity(item.productId, 1);
+                    }
+                  }}
+                  className="w-12 text-center text-sm font-semibold border-x border-y-0 border-gray-150 focus:outline-none focus:ring-0 p-0 h-9"
+                />
+                <button 
+                  onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                  disabled={item.quantity >= (item.stock || 999)}
+                  className="w-9 h-9 flex items-center justify-center hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                >
                   <Plus size={14} />
                 </button>
               </div>

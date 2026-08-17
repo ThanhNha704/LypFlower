@@ -89,7 +89,7 @@ namespace Web_HoaTuoi.Server.Services
             if (string.IsNullOrWhiteSpace(_geminiApiKey)) return null;
 
             int maxRetries = 5;
-            int retryDelayMs = 10000; // Chờ 10 giây ban đầu nếu gặp lỗi 429
+            int retryDelayMs = 10000;
 
             for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
@@ -112,7 +112,7 @@ namespace Web_HoaTuoi.Server.Services
                     {
                         Console.WriteLine($"[Gemini API] Bị giới hạn tần suất (429) ở lần thử {attempt}. Tự động thử lại sau {retryDelayMs / 1000} giây...");
                         await Task.Delay(retryDelayMs);
-                        retryDelayMs *= 2; // Tăng gấp đôi thời gian chờ cho lần sau
+                        retryDelayMs *= 2;
                         continue;
                     }
 

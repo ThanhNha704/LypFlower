@@ -49,7 +49,8 @@ public record AuthResponse(
     string Email,
     string Role,
     string? Phone = null,
-    string? Address = null
+    string? Address = null,
+    bool IsNewUser = false
 );
 
 public record UpdateProfileRequest(

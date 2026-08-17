@@ -43,7 +43,6 @@ public class ProductsController : ControllerBase
         var query = _db.Products
             .Include(p => p.Category)
             .Include(p => p.Reviews)
-            .Where(p => p.IsActive)
             .AsQueryable();
 
         if (!string.IsNullOrEmpty(filter.CategorySlug))
@@ -74,18 +73,18 @@ public class ProductsController : ControllerBase
 
         query = filter.SortBy switch
         {
-            "price_asc" => query.OrderBy(p => p.Price),
-            "price_desc" => query.OrderByDescending(p => p.Price),
-            "best_seller" => query.OrderByDescending(p => p.SoldCount),
-            "random" => query.OrderBy(p => Guid.NewGuid()),
-            _ => query.OrderByDescending(p => p.CreatedAt)
+            "price_asc" => query.OrderByDescending(p => p.IsActive).ThenBy(p => p.Price),
+            "price_desc" => query.OrderByDescending(p => p.IsActive).ThenByDescending(p => p.Price),
+            "best_seller" => query.OrderByDescending(p => p.IsActive).ThenByDescending(p => p.SoldCount),
+            "random" => query.OrderByDescending(p => p.IsActive).ThenBy(p => Guid.NewGuid()),
+            _ => query.OrderByDescending(p => p.IsActive).ThenByDescending(p => p.CreatedAt)
         };
 
         var total = await query.CountAsync();
 
         var items = await query
             .Skip((filter.Page - 1) * filter.PageSize)
-            .Take(filter.PageSize) // Thêm Take vào đây
+            .Take(filter.PageSize)
             .Select(p => new ProductCardDto(
                 p.Id,
                 p.Name,
@@ -105,7 +104,8 @@ public class ProductsController : ControllerBase
                 p.WeightKg,
                 p.SoldCount,
                 p.Reviews.Where(r => r.IsApproved).Any() ? p.Reviews.Where(r => r.IsApproved).Average(r => (double)r.Rating) : (double?)null,
-                p.Reviews.Count(r => r.IsApproved)
+                p.Reviews.Count(r => r.IsApproved),
+                p.IsActive
             ))
             .ToListAsync();
 
@@ -149,10 +149,16 @@ public class ProductsController : ControllerBase
             .Include(p => p.Category)
             .Include(p => p.Reviews.Where(r => r.IsApproved))
                 .ThenInclude(r => r.User)
-            .FirstOrDefaultAsync(p => p.Slug == slug && p.IsActive);
+            .FirstOrDefaultAsync(p => p.Slug == slug);
 
         if (p == null)
             return NotFound();
+
+        var subImages = await _db.ProductImages
+            .Where(img => img.ProductId == p.Id)
+            .OrderBy(img => img.DisplayOrder)
+            .Select(img => new ProductImageDto(img.Id, img.ImageUrl, null, img.DisplayOrder))
+            .ToListAsync();
 
         var allReviews = await _db.Reviews
             .Where(r => r.ProductId == p.Id && r.IsApproved)
@@ -164,7 +170,7 @@ public class ProductsController : ControllerBase
             p.Slug,
             p.Description,
             p.MainImageUrl,
-            new List<ProductImageDto>(),
+            subImages,
             p.Price,
             p.SalePrice,
             p.IsOnSale,
@@ -199,7 +205,8 @@ public class ProductsController : ControllerBase
             allReviews.Any() ? allReviews.Average(r => (double)r.Rating) : (double?)null,
             allReviews.Count,
             p.SoldCount,
-            null
+            null,
+            p.IsActive
         );
 
         return Ok(dto);
@@ -274,7 +281,7 @@ public class ProductsController : ControllerBase
         product.SalePrice = req.SalePrice;
         product.IsOnSale = req.SalePrice.HasValue;
         product.CategoryId = req.CategoryId;
-        product.Stock = req.Stock;
+        // product.Stock is locked on edit, must use InventoryImports to change it.
         product.MainImageUrl = req.MainImageUrl;
         product.FlowerType = req.FlowerType ?? string.Empty;
         product.Occasion = req.Occasion ?? string.Empty;
@@ -308,10 +315,10 @@ public class ProductsController : ControllerBase
         return NoContent();
     }
 
-    // DELETE PRODUCT
+    // DEACTIVATE PRODUCT (Ngừng kinh doanh – soft delete)
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult> DeleteProduct(int id)
+    public async Task<ActionResult> DeactivateProduct(int id)
     {
         var product = await _db.Products.FindAsync(id);
 
@@ -319,6 +326,7 @@ public class ProductsController : ControllerBase
             return NotFound();
 
         product.IsActive = false;
+        product.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
 
@@ -337,4 +345,174 @@ public class ProductsController : ControllerBase
 
         return NoContent();
     }
+
+    // RESTORE PRODUCT (Kích hoạt lại)
+    [HttpPost("{id}/restore")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult> RestoreProduct(int id)
+    {
+        var product = await _db.Products
+            .Include(p => p.Category)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (product == null)
+            return NotFound();
+
+        product.IsActive = true;
+        product.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        try
+        {
+            _ = Task.Run(async () =>
+            {
+                await _vectorDb.UpsertProductVectorAsync(product);
+                await RunDwhEtlAsync();
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[VectorDb Error]: {ex.Message}");
+        }
+
+        return NoContent();
+    }
+
+    // GET /api/products/admin-list
+    [HttpGet("admin-list")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<object>> GetProductsForAdmin(
+        [FromQuery] string? q,
+        [FromQuery] string? statusFilter, // "active" | "hidden" | "out_of_stock"
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        var query = _db.Products
+            .Include(p => p.Category)
+            .Include(p => p.Reviews)
+            .AsQueryable();
+
+        if (!string.IsNullOrEmpty(q))
+        {
+            query = query.Where(p => p.Name.Contains(q) || p.Slug.Contains(q));
+        }
+
+        query = statusFilter switch
+        {
+            "hidden" => query.Where(p => !p.IsActive),
+            "out_of_stock" => query.Where(p => p.IsActive && p.Stock == 0),
+            "active" => query.Where(p => p.IsActive && p.Stock > 0),
+            _ => query
+        };
+
+        query = query.OrderBy(p => p.IsActive ? (p.Stock > 0 ? 0 : 1) : 2)
+                     .ThenByDescending(p => p.CreatedAt);
+
+        var total = await query.CountAsync();
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(p => new ProductCardDto(
+                p.Id,
+                p.Name,
+                p.Slug,
+                p.MainImageUrl,
+                p.Price,
+                p.SalePrice,
+                p.IsOnSale,
+                p.CategoryId,
+                p.Description,
+                p.Meaning ?? string.Empty,
+                p.Color,
+                p.FlowerType,
+                p.Occasion ?? "Nhiều dịp",
+                p.BouquetSize ?? "Tiêu chuẩn",
+                p.Stock,
+                p.WeightKg,
+                p.SoldCount,
+                p.Reviews.Where(r => r.IsApproved).Any() ? p.Reviews.Where(r => r.IsApproved).Average(r => (double)r.Rating) : (double?)null,
+                p.Reviews.Count(r => r.IsApproved),
+                p.IsActive
+            ))
+            .ToListAsync();
+
+        return Ok(new { total, items });
+    }
+
+    // POST /api/products/upload-image
+    [HttpPost("upload-image")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult> UploadImage(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "Không nhận được file ảnh." });
+
+        var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "products");
+        if (!Directory.Exists(uploadsFolder))
+        {
+            Directory.CreateDirectory(uploadsFolder);
+        }
+
+        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+        var filePath = Path.Combine(uploadsFolder, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var url = $"/uploads/products/{fileName}";
+        return Ok(new { url });
+    }
+
+    // GET /api/products/{id}/images
+    [HttpGet("{id}/images")]
+    public async Task<ActionResult> GetSubImages(int id)
+    {
+        var images = await _db.ProductImages
+            .Where(img => img.ProductId == id)
+            .OrderBy(img => img.DisplayOrder)
+            .Select(img => new { img.Id, img.ImageUrl, img.DisplayOrder })
+            .ToListAsync();
+        return Ok(images);
+    }
+
+    // POST /api/products/{id}/images
+    [HttpPost("{id}/images")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult> AddSubImage(int id, [FromBody] AddSubImageRequest req)
+    {
+        var product = await _db.Products.FindAsync(id);
+        if (product == null) return NotFound();
+
+        var img = new ProductImage
+        {
+            ProductId = id,
+            ImageUrl = req.ImageUrl,
+            IsMain = false,
+            DisplayOrder = req.DisplayOrder
+        };
+
+        _db.ProductImages.Add(img);
+        await _db.SaveChangesAsync();
+
+        return Ok(new { img.Id, img.ImageUrl, img.DisplayOrder });
+    }
+
+    // DELETE /api/products/{id}/images/{imgId}
+    [HttpDelete("{id}/images/{imgId}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult> DeleteSubImage(int id, int imgId)
+    {
+        var img = await _db.ProductImages.FirstOrDefaultAsync(x => x.ProductId == id && x.Id == imgId);
+        if (img == null) return NotFound();
+
+        _db.ProductImages.Remove(img);
+        await _db.SaveChangesAsync();
+
+        return NoContent();
+    }
 }
+
+public record AddSubImageRequest(string ImageUrl, int DisplayOrder);

@@ -9,6 +9,7 @@ export interface AuthResponse {
     role: string;
     phone?: string;
     address?: string;
+    isNewUser?: boolean;
 }
 
 export const authApi = {

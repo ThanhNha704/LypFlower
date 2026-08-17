@@ -103,11 +103,11 @@ public class CategoriesController : ControllerBase
         var category = await _db.Categories.FindAsync(id);
         if (category == null) return NotFound();
 
-        // Check if there are active products
-        var hasProducts = await _db.Products.AnyAsync(p => p.CategoryId == id && p.IsActive);
+        // Check if there are any products linked
+        var hasProducts = await _db.Products.AnyAsync(p => p.CategoryId == id);
         if (hasProducts)
         {
-            return BadRequest(new { message = "Không thể xóa danh mục đang có sản phẩm." });
+            return BadRequest(new { message = "Không thể xóa danh mục vì vẫn còn sản phẩm đang liên kết. Vui lòng di chuyển hoặc xóa các sản phẩm đó trước." });
         }
 
         category.IsActive = false;

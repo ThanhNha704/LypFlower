@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, Search, Image as ImageIcon } from 'lucide-react';
 import apiClient from '../../api/client';
 import toast from 'react-hot-toast';
 import { resolveImage } from '../../utils/imageResolver';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 const EMPTY_FORM = {
   name: '',
@@ -25,6 +26,13 @@ export default function AdminCategories() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // ConfirmModal state
+  const [confirmModal, setConfirmModal] = useState({
+    open: false,
+    id: null,
+    name: '',
+  });
 
   const fetchCategories = () => {
     apiClient.get('/categories')
@@ -77,13 +85,22 @@ export default function AdminCategories() {
     }
   }
 
-  async function handleDelete(id, name) {
-    if (!confirm(`Bạn có chắc muốn xóa danh mục "${name}"? Các sản phẩm thuộc danh mục này có thể bị ảnh hưởng.`)) return;
+  function triggerDelete(id, name) {
+    setConfirmModal({
+      open: true,
+      id,
+      name,
+    });
+  }
+
+  async function handleConfirmDelete() {
     try {
-      await apiClient.delete(`/categories/${id}`);
+      await apiClient.delete(`/categories/${confirmModal.id}`);
       toast.success('Đã xóa danh mục');
       fetchCategories();
-    } catch { toast.error('Không thể xóa danh mục này (có thể đang chứa sản phẩm)'); }
+    } catch (err) {
+      toast.error(err.response?.data?.message ?? 'Không thể xóa danh mục này (có thể đang chứa sản phẩm)');
+    }
   }
 
   return (
@@ -111,6 +128,7 @@ export default function AdminCategories() {
               <tr>
                 <th className="px-5 py-4 text-left font-semibold text-gray-600">Hình ảnh</th>
                 <th className="px-5 py-4 text-left font-semibold text-gray-600">Tên danh mục</th>
+                <th className="px-5 py-4 text-left font-semibold text-gray-600">Số sản phẩm</th>
                 <th className="px-5 py-4 text-left font-semibold text-gray-600">Mô tả</th>
                 <th className="px-5 py-4 text-left font-semibold text-gray-600">Slug</th>
                 <th className="px-5 py-4 text-left font-semibold text-gray-600 w-24">Thao tác</th>
@@ -131,6 +149,11 @@ export default function AdminCategories() {
                   <td className="px-5 py-3">
                     <p className="font-bold text-gray-800">{c.name}</p>
                   </td>
+                  <td className="px-5 py-3 font-semibold text-gray-600">
+                    <span className="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs">
+                      {c.productCount ?? 0} sản phẩm
+                    </span>
+                  </td>
                   <td className="px-5 py-3 text-gray-500 max-w-xs truncate">
                     {c.description || <span className="text-gray-300 italic">Trống</span>}
                   </td>
@@ -142,7 +165,7 @@ export default function AdminCategories() {
                       <button onClick={() => openEdit(c)} className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
                         <Pencil size={16} />
                       </button>
-                      <button onClick={() => handleDelete(c.id, c.name)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                      <button onClick={() => triggerDelete(c.id, c.name)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -151,7 +174,7 @@ export default function AdminCategories() {
               ))}
               {filteredCategories.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="text-center py-16 text-gray-400">
+                  <td colSpan={6} className="text-center py-16 text-gray-400">
                     <div className="flex flex-col items-center">
                       <Search size={32} className="text-gray-200 mb-3" />
                       <p>Không tìm thấy danh mục nào</p>
@@ -166,7 +189,7 @@ export default function AdminCategories() {
 
       {modal === 'edit' && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={e => { if (e.target === e.currentTarget) setModal(null); }}>
-          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <h2 className="text-xl font-bold text-gray-900 mb-5">{editId ? 'Sửa Danh Mục' : 'Tạo Danh Mục Mới'}</h2>
 
             <div className="space-y-4">
@@ -203,6 +226,18 @@ export default function AdminCategories() {
           </div>
         </div>
       )}
+
+      {/* ConfirmModal for delete */}
+      <ConfirmModal
+        open={confirmModal.open}
+        title="Xác nhận xóa danh mục"
+        description={`Bạn có chắc chắn muốn xóa danh mục "${confirmModal.name}" khỏi cơ sở dữ liệu? Việc này có thể ảnh hưởng đến sản phẩm nếu có liên kết.`}
+        confirmText="Xác nhận xóa"
+        cancelText="Hủy"
+        confirmVariant="danger"
+        onConfirm={handleConfirmDelete}
+        onClose={() => setConfirmModal({ open: false, id: null, name: '' })}
+      />
     </div>
   );
 }

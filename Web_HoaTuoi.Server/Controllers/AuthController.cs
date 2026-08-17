@@ -114,9 +114,11 @@ public class AuthController : ControllerBase
         // 2. Tìm hoặc tạo user
         var email = payload.Email;
         var user = await _userManager.FindByEmailAsync(email);
+        bool isNewUser = false;
 
         if (user is null)
         {
+            isNewUser = true;
             user = new AppUser
             {
                 UserName       = email,
@@ -138,7 +140,7 @@ public class AuthController : ControllerBase
         var roles = await _userManager.GetRolesAsync(user);
         var role  = roles.Contains("Admin") ? "Admin" : roles.Contains("Staff") ? "Staff" : "Customer";
 
-        return Ok(BuildAuthResponse(user, role));
+        return Ok(BuildAuthResponse(user, role, isNewUser));
     }
 
     // GET /api/auth/me
@@ -263,10 +265,10 @@ public class AuthController : ControllerBase
     }
 
     // ── Private helpers ──────────────────────────────────────
-    private AuthResponse BuildAuthResponse(AppUser user, string role)
+    private AuthResponse BuildAuthResponse(AppUser user, string role, bool isNewUser = false)
     {
         var token = GenerateJwt(user, role);
-        return new AuthResponse(token, user.Id, user.FullName, user.Email!, role, user.Phone, user.DefaultAddress);
+        return new AuthResponse(token, user.Id, user.FullName, user.Email!, role, user.Phone, user.DefaultAddress, isNewUser);
     }
 
     private string GenerateJwt(AppUser user, string role)

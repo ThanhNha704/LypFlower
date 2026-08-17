@@ -1,4 +1,4 @@
-// src/components/product/ProductCard.jsx
+// src/components/product/FlowerCard.jsx
 // Card sản phẩm cho web bán hoa tươi
 
 import { Link } from 'react-router-dom';
@@ -28,7 +28,9 @@ export default function ProductCard({ product }) {
         occasion,
         averageRating,
         reviewCount,
-        soldCount
+        soldCount,
+        isActive,
+        stock
     } = product;
 
     const addItem = useCartStore(s => s.addItem);
@@ -44,7 +46,6 @@ export default function ProductCard({ product }) {
         e.preventDefault();
         e.stopPropagation();
         addItem(product, 1);
-        toast.success("Đã thêm hoa vào giỏ 🌸");
     }
 
     async function handleToggleWishlist(e) {
@@ -64,8 +65,11 @@ export default function ProductCard({ product }) {
         }
     }
 
+    const isDiscontinued = isActive === false;
+    const isOutOfStock = stock === 0 && !isDiscontinued;
+
     return (
-        <Link to={`/hoa/${slug}`} className="group block text-center space-y-3 bg-white dark:bg-[#1a1a1a] p-2 rounded-2xl border dark:border-slate-800 transition-colors">
+        <Link to={`/hoa/${slug}`} className={`group block text-center space-y-3 bg-white dark:bg-[#1a1a1a] p-2 rounded-2xl border dark:border-slate-800 transition-colors ${isDiscontinued ? 'opacity-70' : ''}`}>
 
             {/* Ảnh sản phẩm */}
             <div className="relative overflow-hidden rounded-2xl aspect-square bg-gray-50 dark:bg-gray-800 shadow-sm">
@@ -73,9 +77,20 @@ export default function ProductCard({ product }) {
                     src={imgSrc}
                     alt={name}
                     loading="lazy"
-                    className="w-full h-full object-cover group-hover:scale-110 transition duration-700"
+                    className={`w-full h-full object-cover group-hover:scale-110 transition duration-700 ${isDiscontinued ? 'brightness-50' : isOutOfStock ? 'brightness-75' : ''}`}
                     onError={e => { e.currentTarget.src = FALLBACK_IMG }}
                 />
+                
+                {isDiscontinued ? (
+                    <div className="absolute top-2 left-2 bg-gray-600/90 backdrop-blur-[2px] text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow">
+                        Ngừng KD
+                    </div>
+                ) : isOutOfStock ? (
+                    <div className="absolute top-2 left-2 bg-amber-600/90 backdrop-blur-[2px] text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow">
+                        Tạm hết hàng
+                    </div>
+                ) : null}
+
                 <button 
                     onClick={handleToggleWishlist}
                     className={`absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 dark:bg-black/50 backdrop-blur-[2px] shadow-sm flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 ${isWishlisted ? 'opacity-100 text-pink-500 hover:bg-pink-50 dark:hover:bg-pink-900/20' : 'text-gray-300 dark:text-gray-600 hover:text-pink-500 hover:bg-white dark:hover:bg-gray-700'}`}
@@ -108,15 +123,31 @@ export default function ProductCard({ product }) {
 
                 {/* Nút đặt hàng */}
                 <div className="pt-2">
-                    <button
-                        onClick={handleAddCart}
-                        className="w-full py-2 bg-[#E92E69] text-white text-[11px] font-bold rounded-lg hover:bg-pink-700 transition-all shadow-sm hover:shadow-md uppercase tracking-widest"
-                    >
-                        ĐẶT HÀNG
-                    </button>
+                    {isDiscontinued ? (
+                        <button
+                            disabled
+                            className="w-full py-2 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 text-[11px] font-bold rounded-lg cursor-not-allowed uppercase tracking-widest"
+                        >
+                            Ngừng KD
+                        </button>
+                    ) : isOutOfStock ? (
+                        <button
+                            disabled
+                            className="w-full py-2 bg-amber-50 dark:bg-amber-950/20 text-amber-500 dark:text-amber-600 text-[11px] font-bold rounded-lg cursor-not-allowed uppercase tracking-widest"
+                        >
+                            Tạm hết hàng
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handleAddCart}
+                            className="w-full py-2 bg-[#E92E69] text-white text-[11px] font-bold rounded-lg hover:bg-pink-700 transition-all shadow-sm hover:shadow-md uppercase tracking-widest"
+                        >
+                            ĐẶT HÀNG
+                        </button>
+                    )}
                 </div>
             </div>
 
         </Link>
     );
-}
+}

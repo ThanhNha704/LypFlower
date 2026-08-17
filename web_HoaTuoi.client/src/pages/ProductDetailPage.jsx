@@ -151,6 +151,16 @@ export default function ProductDetailPage() {
 
         {/* Info */}
         <div className="space-y-4">
+          {product.isActive === false ? (
+            <div className="bg-gray-100 border border-gray-200 rounded-2xl p-4 text-gray-700 text-xs font-semibold flex items-center gap-2">
+              ⚠️ Sản phẩm này đã ngừng kinh doanh. Quý khách có thể tham khảo các sản phẩm khác dưới đây.
+            </div>
+          ) : product.stock === 0 ? (
+            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-amber-700 text-xs font-semibold flex items-center gap-2">
+              ⚠️ Sản phẩm này tạm thời hết hàng. Quý khách vui lòng chọn sản phẩm khác hoặc liên hệ hotline.
+            </div>
+          ) : null}
+
           <div className="flex items-start justify-between gap-3">
             <h1 className="text-2xl font-bold text-gray-900 leading-snug">{product.name}</h1>
             <button onClick={handleToggleWishlist}
@@ -199,8 +209,8 @@ export default function ProductDetailPage() {
           <FlowerInfo product={product} />
 
           {/* Stock */}
-          <p className={`text-sm font-medium ${product.stock > 0 ? 'text-green-600' : 'text-red-500'}`}>
-            {product.stock > 0 ? `✓ Còn hàng (${product.stock})` : '✗ Hết hàng'}
+          <p className={`text-sm font-medium ${product.isActive === false ? 'text-gray-500' : product.stock > 0 ? 'text-green-600' : 'text-red-500'}`}>
+            {product.isActive === false ? '✗ Ngừng kinh doanh' : product.stock > 0 ? `✓ Còn hàng (${product.stock})` : '✗ Tạm hết hàng'}
           </p>
 
           {/* Information Badges */}
@@ -218,16 +228,53 @@ export default function ProductDetailPage() {
           {/* Qty + Add to cart */}
           <div className="flex flex-col gap-4 pt-4">
             <div className="flex items-center gap-3">
-              <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
-                <button onClick={() => setQty(v => Math.max(1, v - 1))}
-                  className="w-10 h-11 flex items-center justify-center hover:bg-gray-50 text-gray-600 text-lg font-medium">−</button>
-                <span className="w-12 text-center text-sm font-semibold">{qty}</span>
-                <button onClick={() => setQty(v => Math.min(product.stock, v + 1))}
-                  className="w-10 h-11 flex items-center justify-center hover:bg-gray-50 text-gray-600 text-lg font-medium">+</button>
+              <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden bg-white">
+                <button 
+                  onClick={() => setQty(v => Math.max(1, v - 1))}
+                  disabled={qty <= 1 || product.stock === 0 || product.isActive === false}
+                  className="w-10 h-11 flex items-center justify-center hover:bg-gray-50 text-gray-600 text-lg font-medium disabled:opacity-30"
+                >
+                  −
+                </button>
+                <input 
+                  type="number"
+                  min="1"
+                  max={product.stock || 1}
+                  value={qty}
+                  disabled={product.stock === 0 || product.isActive === false}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (isNaN(val) || val <= 0) {
+                      // Allow empty temporarily
+                    } else if (val > product.stock) {
+                      toast.error(`Chỉ còn ${product.stock} sản phẩm trong kho`);
+                      setQty(product.stock);
+                    } else {
+                      setQty(val);
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (isNaN(val) || val <= 0) {
+                      setQty(1);
+                    }
+                  }}
+                  className="w-12 text-center text-sm font-semibold border-y-0 border-x border-gray-200 focus:outline-none focus:ring-0 p-0 h-11"
+                />
+                <button 
+                  onClick={() => setQty(v => Math.min(product.stock, v + 1))}
+                  disabled={qty >= product.stock || product.stock === 0 || product.isActive === false}
+                  className="w-10 h-11 flex items-center justify-center hover:bg-gray-50 text-gray-600 text-lg font-medium disabled:opacity-30"
+                >
+                  +
+                </button>
               </div>
-              <button onClick={handleAddToCart} disabled={product.stock === 0}
-                className="flex-1 h-11 bg-[#E92E69] text-white rounded-xl font-bold hover:bg-pink-600 transition flex items-center justify-center gap-2 shadow-sm">
-                <ShoppingCart size={18} /> THÊM VÀO GIỎ HÀNG
+              <button 
+                onClick={handleAddToCart} 
+                disabled={product.stock === 0 || product.isActive === false}
+                className="flex-1 h-11 bg-[#E92E69] text-white rounded-xl font-bold hover:bg-pink-600 transition flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ShoppingCart size={18} /> {product.isActive === false ? "NGỪNG KINH DOANH" : product.stock === 0 ? "TẠM HẾT HÀNG" : "THÊM VÀO GIỎ HÀNG"}
               </button>
             </div>
             

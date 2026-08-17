@@ -72,7 +72,8 @@ public record ProductCardDto(
     double? WeightKg,
     int SoldCount,
     double? AverageRating,
-    int ReviewCount
+    int ReviewCount,
+    bool IsActive
 );
 
 /// <summary>Chi tiết sản phẩm đầy đủ (trang product detail)</summary>
@@ -99,7 +100,8 @@ public record ProductDetailDto(
     double? AverageRating,
     int ReviewCount,
     int SoldCount,
-    decimal? PromotionalPrice   // Giá Flash Sale nếu đang active
+    decimal? PromotionalPrice,   // Giá Flash Sale nếu đang active
+    bool IsActive
 );
 
 public record ProductImageDto(int Id, string Url, string? AltText, int SortOrder);
