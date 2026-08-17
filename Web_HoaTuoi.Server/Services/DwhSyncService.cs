@@ -23,12 +23,15 @@ namespace Web_HoaTuoi.Server.Services
 
         public async Task SyncAsync()
         {
+            Console.WriteLine("[DWH Sync] SyncAsync started. Waiting for semaphore lock...");
             await _syncLock.WaitAsync();
             try
             {
+                Console.WriteLine("[DWH Sync] Semaphore lock acquired. Connecting to OLTP database...");
                 // 1. Fetch data from OLTP (transaction database)
-            using var oltpConn = new SqlConnection(_defaultConnectionString);
-            await oltpConn.OpenAsync();
+                using var oltpConn = new SqlConnection(_defaultConnectionString);
+                await oltpConn.OpenAsync();
+                Console.WriteLine("[DWH Sync] Connected to OLTP database. Querying users, products, orders, order items...");
 
             var users = (await oltpConn.QueryAsync<(string Id, string FullName, string Email, string Phone, string Address, DateTime CreatedAt)>(
                 "SELECT Id, FullName, Email, Phone, DefaultAddress AS Address, CreatedAt FROM AspNetUsers")).ToList();
@@ -44,15 +47,18 @@ namespace Web_HoaTuoi.Server.Services
             var orderItems = (await oltpConn.QueryAsync<(int Id, int OrderId, int ProductId, string ProductName, decimal UnitPrice, int Quantity)>(
                 "SELECT Id, OrderId, ProductId, ProductName, UnitPrice, Quantity FROM OrderItems")).ToList();
 
+            Console.WriteLine($"[DWH Sync] OLTP data fetched: {users.Count} users, {products.Count} products, {orders.Count} orders, {orderItems.Count} orderItems. Connecting to DWH database...");
             // 2. Connect to DWH (analytical database)
             using var dwhConn = new SqlConnection(_dwhConnectionString);
             await dwhConn.OpenAsync();
+            Console.WriteLine("[DWH Sync] Connected to DWH database. Clearing old DWH tables...");
 
             // ── Clean old DWH data in correct order (Tránh lỗi khóa ngoại) ───
             await dwhConn.ExecuteAsync("DELETE FROM Fact_Sales");
             await dwhConn.ExecuteAsync("DELETE FROM Dim_Customer");
             await dwhConn.ExecuteAsync("DELETE FROM Dim_Product");
             await dwhConn.ExecuteAsync("DELETE FROM Dim_Time");
+            Console.WriteLine("[DWH Sync] Old DWH tables cleared. Bulk inserting Dim_Customer...");
 
             // ── A. Bulk Insert Dim_Customer ───────────────────────────
             var customersToInsert = users.Select(u => new {
@@ -66,9 +72,24 @@ namespace Web_HoaTuoi.Server.Services
 
             if (customersToInsert.Any())
             {
-                await dwhConn.ExecuteAsync(
-                    @"INSERT INTO Dim_Customer (CustomerId, FullName, Email, Phone, Address, CreatedAt) 
-                      VALUES (@Id, @FullName, @Email, @Phone, @Address, @CreatedAt)", customersToInsert);
+                int batchSize = 100;
+                for (int i = 0; i < customersToInsert.Count; i += batchSize)
+                {
+                    var batch = customersToInsert.Skip(i).Take(batchSize).ToList();
+                    var sb = new StringBuilder();
+                    sb.Append("INSERT INTO Dim_Customer (CustomerId, FullName, Email, Phone, Address, CreatedAt) VALUES ");
+                    for (int j = 0; j < batch.Count; j++)
+                    {
+                        var c = batch[j];
+                        if (j > 0) sb.Append(", ");
+                        string escFullName = c.FullName.Replace("'", "''");
+                        string escEmail = c.Email.Replace("'", "''");
+                        string escPhone = (c.Phone ?? "N/A").Replace("'", "''");
+                        string escAddress = (c.Address ?? "N/A").Replace("'", "''");
+                        sb.Append($"('{c.Id}', N'{escFullName}', '{escEmail}', '{escPhone}', N'{escAddress}', '{c.CreatedAt:yyyy-MM-dd HH:mm:ss}')");
+                    }
+                    await dwhConn.ExecuteAsync(sb.ToString());
+                }
             }
 
             // Ensure dummy customer exists
@@ -87,10 +108,24 @@ namespace Web_HoaTuoi.Server.Services
 
             if (productsToInsert.Any())
             {
-                await dwhConn.ExecuteAsync(
-                    @"INSERT INTO Dim_Product (ProductId, ProductName, CategoryName, Price, Cost, Status) 
-                      VALUES (@Id, @ProductName, @CategoryName, @Price, @Cost, @Status)", productsToInsert);
+                int batchSize = 100;
+                for (int i = 0; i < productsToInsert.Count; i += batchSize)
+                {
+                    var batch = productsToInsert.Skip(i).Take(batchSize).ToList();
+                    var sb = new StringBuilder();
+                    sb.Append("INSERT INTO Dim_Product (ProductId, ProductName, CategoryName, Price, Cost, Status) VALUES ");
+                    for (int j = 0; j < batch.Count; j++)
+                    {
+                        var p = batch[j];
+                        if (j > 0) sb.Append(", ");
+                        string escName = p.ProductName.Replace("'", "''");
+                        string escCategory = p.CategoryName.Replace("'", "''");
+                        sb.Append($"({p.Id}, N'{escName}', N'{escCategory}', {p.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)}, {p.Cost.ToString(System.Globalization.CultureInfo.InvariantCulture)}, '{p.Status}')");
+                    }
+                    await dwhConn.ExecuteAsync(sb.ToString());
+                }
             }
+            Console.WriteLine("[DWH Sync] Dim_Customer and Dim_Product bulk inserted. Bulk inserting Dim_Time...");
 
             // ── C. Bulk Insert Dim_Time ───────────────────────────────
             var timesToInsert = new List<(int TimeKey, DateTime FullDate, int Day, int Month, string MonthName, int Quarter, int Year, string DayOfWeek, int IsWeekend)>();
@@ -133,6 +168,7 @@ namespace Web_HoaTuoi.Server.Services
                     await dwhConn.ExecuteAsync(sb.ToString());
                 }
             }
+            Console.WriteLine("[DWH Sync] Dim_Time bulk inserted. Building Fact_Sales mappings...");
 
             // ── D. Bulk Insert Fact_Sales ─────────────────────────────
             // Load key mappings
@@ -181,6 +217,7 @@ namespace Web_HoaTuoi.Server.Services
                 factsToInsert.Add((customerKey, productKey, timeKey, oi.OrderId, oi.Id, oi.Quantity, oi.UnitPrice, discountAmount, totalAmount, profit));
             }
 
+            Console.WriteLine($"[DWH Sync] Fact_Sales mappings built: {factsToInsert.Count} rows to insert. Bulk inserting Fact_Sales...");
             if (factsToInsert.Any())
             {
                 int batchSize = 400;
