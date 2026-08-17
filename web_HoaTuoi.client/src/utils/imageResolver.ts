@@ -24,11 +24,16 @@ export function resolveImage(
     // Lấy tên file
     const fileName = dbPath.split("/").pop()
 
-    if (!fileName)
-        return fallback ?? dbPath
+    if (fileName && imageMap[fileName]) {
+        return imageMap[fileName]
+    }
 
-    // Map sang assets
-    return imageMap[fileName] ?? fallback ?? dbPath
+    // Nếu là đường dẫn cục bộ (ví dụ /uploads/...)
+    if (dbPath.startsWith("/") || dbPath.startsWith(".")) {
+        return dbPath
+    }
+
+    return fallback ?? dbPath
 }
 
 

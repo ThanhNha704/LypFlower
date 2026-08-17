@@ -584,12 +584,12 @@ export default function AdminProducts() {
 
               {/* TỒN KHO: Khóa khi Edit, cho sửa khi Create */}
               {editId ? (
-                <div className="col-span-2 bg-amber-50/60 border border-amber-100 rounded-2xl p-4 flex items-center justify-between gap-3">
+                <div className="col-span-2 rounded-2xl p-4 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5 text-amber-800 text-xs font-semibold">
                     <Lock size={16} className="text-amber-600 flex-shrink-0" />
                     <div>
                       <span>Tồn kho hiện tại: <b className="text-sm">{form.stock}</b> sản phẩm.</span>
-                      <p className="text-[10px] text-amber-600/80 font-normal mt-0.5">Số lượng tồn kho được quản lý chặt chẽ qua chứng từ để tránh sai lệch dữ liệu.</p>
+                      {/* <p className="text-[10px] text-amber-600/80 font-normal mt-0.5">Số lượng tồn kho được quản lý chặt chẽ qua chứng từ để tránh sai lệch dữ liệu.</p> */}
                     </div>
                   </div>
                   <button 
@@ -696,7 +696,7 @@ export default function AdminProducts() {
 
               {/* ── ẢNH PHỤ (Chỉ khi Edit) ── */}
               <div className="col-span-2 border-t pt-3 mt-1">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Thư viện ảnh phụ (Shopee Style)</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Thư viện ảnh phụ</label>
                 {editId ? (
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-2.5">
