@@ -23,6 +23,8 @@ export default function AdminOrders() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
   const [detail, setDetail] = useState(null);
   const [staffMembers, setStaffMembers] = useState([]);
@@ -33,6 +35,8 @@ export default function AdminOrders() {
     let url = `/orders?page=${page}&pageSize=${PAGE_SIZE}`;
     if (statusFilter) url += `&status=${statusFilter}`;
     if (search) url += `&search=${search}`;
+    if (dateFrom) url += `&dateFrom=${dateFrom}`;
+    if (dateTo) url += `&dateTo=${dateTo}`;
     apiClient.get(url)
       .then(r => { 
         setOrders(r.data.items ?? []); 
@@ -93,7 +97,7 @@ export default function AdminOrders() {
         isMounted = false;
         connection.stop();
     };
-  }, [page, statusFilter, search]);
+  }, [page, statusFilter, search, dateFrom, dateTo]);
 
   async function updateStatus(orderId, status) {
     try {
@@ -153,10 +157,10 @@ export default function AdminOrders() {
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-  <div className="space-y-5">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
-<h1 className="text-xl font-bold text-gray-900">Quản lý đơn hàng</h1>
-     <p className="text-sm text-gray-400">{total} đơn hàng</p>
+        <h1 className="text-xl font-bold text-gray-900">Quản lý đơn hàng</h1>
+        <p className="text-sm text-gray-400">{total} đơn hàng</p>
       </div>
 
       {/* Filter tabs and Search */}
@@ -182,6 +186,36 @@ export default function AdminOrders() {
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
         </div>
+      </div>
+
+      {/* Date Range Picker Filters */}
+      <div className="bg-gray-50/50 border border-gray-100 rounded-2xl p-4 flex flex-wrap gap-4 items-center">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Từ ngày:</span>
+          <input 
+            type="date" 
+            value={dateFrom} 
+            onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} 
+            className="input text-sm py-1.5 px-3 border-gray-200 rounded-xl focus:ring-amber-500/20 bg-white"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Đến ngày:</span>
+          <input 
+            type="date" 
+            value={dateTo} 
+            onChange={(e) => { setDateTo(e.target.value); setPage(1); }} 
+            className="input text-sm py-1.5 px-3 border-gray-200 rounded-xl focus:ring-amber-500/20 bg-white"
+          />
+        </div>
+        {(dateFrom || dateTo) && (
+          <button 
+            onClick={() => { setDateFrom(''); setDateTo(''); setPage(1); }}
+            className="text-xs font-bold text-red-500 hover:text-red-600 transition-colors uppercase tracking-wider ml-auto"
+          >
+            Xóa bộ lọc ngày
+          </button>
+        )}
       </div>
 
       {/* Floating Bulk Action Bar */}

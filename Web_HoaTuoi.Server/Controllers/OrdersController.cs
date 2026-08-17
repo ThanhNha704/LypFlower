@@ -310,7 +310,9 @@ public class OrdersController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] string? status = null,
-        [FromQuery] string? search = null)
+        [FromQuery] string? search = null,
+        [FromQuery] DateTime? dateFrom = null,
+        [FromQuery] DateTime? dateTo = null)
     {
         var query = _db.Orders.AsQueryable();
 
@@ -325,6 +327,18 @@ public class OrdersController : ControllerBase
                 o.OrderCode.Contains(search) || 
                 o.ReceiverName.Contains(search) || 
                 o.ReceiverPhone.Contains(search));
+        }
+
+        if (dateFrom.HasValue)
+        {
+            var from = DateTime.SpecifyKind(dateFrom.Value.Date, DateTimeKind.Utc);
+            query = query.Where(o => o.CreatedAt >= from);
+        }
+
+        if (dateTo.HasValue)
+        {
+            var to = DateTime.SpecifyKind(dateTo.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
+            query = query.Where(o => o.CreatedAt <= to);
         }
 
         var total = await query.CountAsync();

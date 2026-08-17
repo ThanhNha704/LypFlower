@@ -27,7 +27,7 @@ public class UsersController : ControllerBase
         [FromQuery] int pageSize = 20,
         [FromQuery] string? search = null)
     {
-        var query = _userManager.Users.AsQueryable();
+        var query = _userManager.Users.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrEmpty(search))
         {
@@ -41,7 +41,6 @@ public class UsersController : ControllerBase
 
         var total = await query.CountAsync();
         
-        // Fetch order stats manually to avoid complex GroupBy
         var users = await query
             .OrderByDescending(u => u.Id)
             .Skip((page - 1) * pageSize)
@@ -53,7 +52,8 @@ public class UsersController : ControllerBase
                 u.Email,
                 u.PhoneNumber,
                 u.CreatedAt,
-                IsActive = true
+                // Trả về trạng thái thực: bị khóa nếu LockoutEnd > hiện tại
+                IsActive = !(u.LockoutEnd.HasValue && u.LockoutEnd.Value > DateTimeOffset.UtcNow)
             })
             .ToListAsync();
 
@@ -72,6 +72,17 @@ public class UsersController : ControllerBase
 
         var orderStats = orderStatsQuery.ToDictionary(x => x.UserId);
 
+        // N+1 Query Fix: Lấy roles của toàn bộ users được trả về trong 1 query duy nhất
+        var rolesList = await (from ur in _context.UserRoles
+                               join r in _context.Roles on ur.RoleId equals r.Id
+                               where userIds.Contains(ur.UserId)
+                               select new { ur.UserId, RoleName = r.Name })
+                              .ToListAsync();
+
+        var userRoles = rolesList
+            .GroupBy(x => x.UserId)
+            .ToDictionary(g => g.Key, g => g.First().RoleName ?? "Customer");
+
         var result = users.Select(u => new
         {
             u.Id,
@@ -80,6 +91,7 @@ public class UsersController : ControllerBase
             u.PhoneNumber,
             u.CreatedAt,
             u.IsActive,
+            Role = userRoles.GetValueOrDefault(u.Id ?? "", "Customer"),
             TotalOrders = orderStats.ContainsKey(u.Id ?? "") ? orderStats[u.Id ?? ""].TotalOrders : 0,
             TotalSpent = orderStats.ContainsKey(u.Id ?? "") ? orderStats[u.Id ?? ""].TotalSpent : 0
         });
@@ -127,5 +139,72 @@ public class UsersController : ControllerBase
         await _userManager.AddToRoleAsync(user, "Staff");
 
         return Ok(new { message = "Tạo tài khoản nhân viên thành công." });
+    }
+
+    public class ChangeRoleRequest
+    {
+        public string Role { get; set; } = null!;
+    }
+
+    // PUT /api/users/{id}/role  — Chỉ Admin mới được đổi quyền
+    [HttpPut("{id}/role")]
+    public async Task<ActionResult> ChangeRole(string id, [FromBody] ChangeRoleRequest req)
+    {
+        var validRoles = new[] { "Customer", "Staff", "Admin" };
+        if (!validRoles.Contains(req.Role))
+            return BadRequest(new { message = "Vai trò không hợp lệ. Chỉ chấp nhận: Customer, Staff, Admin." });
+
+        var user = await _userManager.FindByIdAsync(id);
+        if (user == null) return NotFound(new { message = "Không tìm thấy người dùng." });
+
+        // Không cho tự hạ quyền chính mình
+        var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (user.Id == currentUserId && req.Role != "Admin")
+            return BadRequest(new { message = "Bạn không thể tự hạ quyền của chính mình." });
+
+        // Đảm bảo role tồn tại
+        foreach (var role in validRoles)
+        {
+            if (!await _context.Roles.AnyAsync(r => r.Name == role))
+            {
+                _context.Roles.Add(new IdentityRole(role));
+            }
+        }
+        await _context.SaveChangesAsync();
+
+        // Xóa tất cả roles cũ và gán role mới
+        var currentRoles = await _userManager.GetRolesAsync(user);
+        await _userManager.RemoveFromRolesAsync(user, currentRoles);
+        await _userManager.AddToRoleAsync(user, req.Role);
+
+        return Ok(new { message = $"Đã chuyển {user.FullName ?? user.Email} sang vai trò {req.Role}." });
+    }
+
+    // PUT /api/users/{id}/toggle-active  — Khóa/Mở khóa tài khoản
+    [HttpPut("{id}/toggle-active")]
+    public async Task<ActionResult> ToggleActive(string id)
+    {
+        var user = await _userManager.FindByIdAsync(id);
+        if (user == null) return NotFound(new { message = "Không tìm thấy người dùng." });
+
+        // Không cho khóa chính mình
+        var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (user.Id == currentUserId)
+            return BadRequest(new { message = "Bạn không thể khóa tài khoản của chính mình." });
+
+        bool isCurrentlyLocked = user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow;
+        if (isCurrentlyLocked)
+        {
+            // Mở khóa
+            await _userManager.SetLockoutEndDateAsync(user, null);
+            return Ok(new { message = $"Đã mở khóa tài khoản {user.FullName ?? user.Email}.", isActive = true });
+        }
+        else
+        {
+            // Khóa đến năm 2099
+            await _userManager.SetLockoutEnabledAsync(user, true);
+            await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.UtcNow.AddYears(73));
+            return Ok(new { message = $"Đã khóa tài khoản {user.FullName ?? user.Email}.", isActive = false });
+        }
     }
 }

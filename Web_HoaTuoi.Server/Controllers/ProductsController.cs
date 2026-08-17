@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Web_HoaTuoi.Server.Data;
 using Web_HoaTuoi.Server.DTOs;
 using Web_HoaTuoi.Server.Models;
+using Web_HoaTuoi.Server.Services;
 
 namespace Web_HoaTuoi.Server.Controllers;
 
@@ -13,14 +14,16 @@ namespace Web_HoaTuoi.Server.Controllers;
 public class ProductsController : ControllerBase
 {
     private readonly AppDbContext _db;
-    private readonly Services.VectorDbService _vectorDb;
-    private readonly Services.DwhSyncService _dwhSync;
+    private readonly VectorDbService _vectorDb;
+    private readonly DwhSyncService _dwhSync;
+    private readonly ICloudinaryService _cloudinary;
 
-    public ProductsController(AppDbContext db, Services.VectorDbService vectorDb, Services.DwhSyncService dwhSync)
+    public ProductsController(AppDbContext db, VectorDbService vectorDb, DwhSyncService dwhSync, ICloudinaryService cloudinary)
     {
         _db = db;
         _vectorDb = vectorDb;
         _dwhSync = dwhSync;
+        _cloudinary = cloudinary;
     }
 
     private async Task RunDwhEtlAsync()
@@ -226,7 +229,7 @@ public class ProductsController : ControllerBase
             SalePrice = req.SalePrice,
             IsOnSale = req.SalePrice.HasValue,
             CategoryId = req.CategoryId,
-            Stock = req.Stock,
+            Stock = req.Stock ?? 0,
             MainImageUrl = req.MainImageUrl,
             FlowerType = req.FlowerType ?? string.Empty,
             Occasion = req.Occasion ?? string.Empty,
@@ -274,6 +277,16 @@ public class ProductsController : ControllerBase
         if (product == null)
             return NotFound();
 
+        // Nếu đổi ảnh chính → tự động xóa ảnh cũ trên Cloudinary
+        if (!string.IsNullOrEmpty(product.MainImageUrl) && product.MainImageUrl != req.MainImageUrl)
+        {
+            var oldPublicId = _cloudinary.ExtractPublicId(product.MainImageUrl);
+            if (!string.IsNullOrEmpty(oldPublicId))
+            {
+                _ = Task.Run(() => _cloudinary.DeleteAsync(oldPublicId));
+            }
+        }
+
         product.Name = req.Name;
         product.Slug = req.Slug;
         product.Description = req.Description;
@@ -281,7 +294,6 @@ public class ProductsController : ControllerBase
         product.SalePrice = req.SalePrice;
         product.IsOnSale = req.SalePrice.HasValue;
         product.CategoryId = req.CategoryId;
-        // product.Stock is locked on edit, must use InventoryImports to change it.
         product.MainImageUrl = req.MainImageUrl;
         product.FlowerType = req.FlowerType ?? string.Empty;
         product.Occasion = req.Occasion ?? string.Empty;
@@ -290,6 +302,24 @@ public class ProductsController : ControllerBase
         product.Meaning = req.Meaning ?? string.Empty;
         product.WeightKg = req.WeightKg;
         product.UpdatedAt = DateTime.UtcNow;
+
+        // Nếu admin thay đổi số lượng tồn kho → tạo lịch sử điều chỉnh
+        if (req.Stock.HasValue && req.Stock.Value != product.Stock)
+        {
+            int delta = req.Stock.Value - product.Stock;
+            var importRecord = new InventoryImport
+            {
+                ProductId = product.Id,
+                Quantity = delta,
+                ImportPrice = 0,
+                SupplierName = null,
+                Notes = $"Điều chỉnh tồn kho thủ công bởi Admin ({(delta > 0 ? "+" : "")}{delta} sản phẩm)",
+                ImportDate = DateTime.UtcNow,
+                CreatedByUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            };
+            _db.InventoryImports.Add(importRecord);
+            product.Stock = req.Stock.Value;
+        }
 
         await _db.SaveChangesAsync();
 
@@ -448,22 +478,15 @@ public class ProductsController : ControllerBase
         if (file == null || file.Length == 0)
             return BadRequest(new { message = "Không nhận được file ảnh." });
 
-        var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "products");
-        if (!Directory.Exists(uploadsFolder))
+        try
         {
-            Directory.CreateDirectory(uploadsFolder);
+            var url = await _cloudinary.UploadAsync(file, "hoatuoi/products");
+            return Ok(new { url });
         }
-
-        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-        var filePath = Path.Combine(uploadsFolder, fileName);
-
-        using (var stream = new FileStream(filePath, FileMode.Create))
+        catch (Exception ex)
         {
-            await file.CopyToAsync(stream);
+            return StatusCode(500, new { message = $"Upload ảnh thất bại: {ex.Message}" });
         }
-
-        var url = $"/uploads/products/{fileName}";
-        return Ok(new { url });
     }
 
     // GET /api/products/{id}/images
@@ -507,6 +530,16 @@ public class ProductsController : ControllerBase
     {
         var img = await _db.ProductImages.FirstOrDefaultAsync(x => x.ProductId == id && x.Id == imgId);
         if (img == null) return NotFound();
+
+        // Tự động xóa ảnh tương ứng trên Cloudinary
+        if (!string.IsNullOrEmpty(img.ImageUrl))
+        {
+            var oldPublicId = _cloudinary.ExtractPublicId(img.ImageUrl);
+            if (!string.IsNullOrEmpty(oldPublicId))
+            {
+                _ = Task.Run(() => _cloudinary.DeleteAsync(oldPublicId));
+            }
+        }
 
         _db.ProductImages.Remove(img);
         await _db.SaveChangesAsync();

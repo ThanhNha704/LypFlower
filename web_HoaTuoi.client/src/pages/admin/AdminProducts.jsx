@@ -514,7 +514,9 @@ export default function AdminProducts() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg text-xs">+{imp.quantity}</span>
+                      <span className={`font-black px-2 py-1 rounded-lg text-xs ${imp.quantity >= 0 ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
+                        {imp.quantity > 0 ? `+${imp.quantity}` : imp.quantity}
+                      </span>
                     </td>
                     <td className="px-6 py-4 font-medium text-gray-700">{formatVnd(imp.importPrice)}</td>
                     <td className="px-6 py-4 font-black text-gray-900">{formatVnd(imp.totalCost)}</td>
@@ -582,30 +584,36 @@ export default function AdminProducts() {
                 <input name="salePrice" type="number" value={form.salePrice} onChange={handleFormChange} placeholder="VD: 450000" className="input text-sm font-bold text-rose-600" />
               </div>
 
-              {/* TỒN KHO: Khóa khi Edit, cho sửa khi Create */}
-              {editId ? (
-                <div className="col-span-2 rounded-2xl p-4 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5 text-amber-800 text-xs font-semibold">
-                    <Lock size={16} className="text-amber-600 flex-shrink-0" />
-                    <div>
-                      <span>Tồn kho hiện tại: <b className="text-sm">{form.stock}</b> sản phẩm.</span>
-                      {/* <p className="text-[10px] text-amber-600/80 font-normal mt-0.5">Số lượng tồn kho được quản lý chặt chẽ qua chứng từ để tránh sai lệch dữ liệu.</p> */}
-                    </div>
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={() => { setModal(null); openImportModal(editId); }}
-                    className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all"
-                  >
-                    Nhập kho
-                  </button>
+              {/* TỒN KHO: Mở khóa khi Edit và hiển thị lịch sử */}
+              <div className="col-span-2">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 ml-1">
+                  Số lượng tồn kho {editId ? '(Chỉnh sửa trực tiếp)' : 'ban đầu *'}
+                </label>
+                <div className="flex gap-2 items-center">
+                  <input 
+                    name="stock" 
+                    type="number" 
+                    value={form.stock} 
+                    onChange={handleFormChange} 
+                    placeholder="Nhập số lượng tồn..." 
+                    className="input text-sm font-bold flex-1" 
+                  />
+                  {editId && (
+                    <button 
+                      type="button"
+                      onClick={() => { setModal(null); openImportModal(editId); }}
+                      className="px-3.5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex-shrink-0"
+                    >
+                      Nhập kho
+                    </button>
+                  )}
                 </div>
-              ) : (
-                <div className="col-span-2">
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 ml-1">Số lượng tồn kho ban đầu *</label>
-                  <input name="stock" type="number" value={form.stock} onChange={handleFormChange} placeholder="Nhập số lượng tồn ban đầu..." className="input text-sm font-bold" />
-                </div>
-              )}
+                {editId && (
+                  <p className="text-[10px] text-amber-600/80 font-normal mt-1 ml-1">
+                    * Lưu ý: Thay đổi số lượng tại đây sẽ tự động tạo một lịch sử điều chỉnh kho trong tab "Lịch sử nhập kho".
+                  </p>
+                )}
+              </div>
 
               {/* Details Fields */}
               <div>

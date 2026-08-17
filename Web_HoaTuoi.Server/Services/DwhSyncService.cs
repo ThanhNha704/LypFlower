@@ -9,6 +9,7 @@ namespace Web_HoaTuoi.Server.Services
     {
         private readonly string _defaultConnectionString;
         private readonly string _dwhConnectionString;
+        private static readonly System.Threading.SemaphoreSlim _syncLock = new System.Threading.SemaphoreSlim(1, 1);
 
         public DwhSyncService(IConfiguration configuration)
         {
@@ -22,7 +23,10 @@ namespace Web_HoaTuoi.Server.Services
 
         public async Task SyncAsync()
         {
-            // 1. Fetch data from OLTP (transaction database)
+            await _syncLock.WaitAsync();
+            try
+            {
+                // 1. Fetch data from OLTP (transaction database)
             using var oltpConn = new SqlConnection(_defaultConnectionString);
             await oltpConn.OpenAsync();
 
@@ -138,7 +142,11 @@ namespace Web_HoaTuoi.Server.Services
 
             var productMap = (await dwhConn.QueryAsync<(int ProductId, int ProductKey, decimal Cost)>(
                 "SELECT ProductId, ProductKey, ISNULL(Cost, 0) AS Cost FROM Dim_Product"))
-                .ToDictionary(x => x.ProductId, x => (x.ProductKey, x.Cost));
+                .GroupBy(x => x.ProductId)
+                .ToDictionary(x => x.Key, g => {
+                    var latest = g.OrderByDescending(i => i.ProductKey).First();
+                    return (latest.ProductKey, latest.Cost);
+                });
 
             var guestCustomerKey = customerMap.TryGetValue("-1", out var gk) ? gk : -1;
 
@@ -191,6 +199,11 @@ namespace Web_HoaTuoi.Server.Services
                     
                     await dwhConn.ExecuteAsync(sb.ToString());
                 }
+            }
+            }
+            finally
+            {
+                _syncLock.Release();
             }
         }
     }

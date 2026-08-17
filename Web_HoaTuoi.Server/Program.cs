@@ -122,7 +122,7 @@ builder.Services.AddTransient<IEmailSenderService, EmailSenderService>();
 
 builder.Services.AddScoped<Web_HoaTuoi.Server.Services.VectorDbService>();
 builder.Services.AddScoped<Web_HoaTuoi.Server.Services.DwhSyncService>();
-
+builder.Services.AddSingleton<ICloudinaryService, CloudinaryService>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

@@ -33,7 +33,7 @@ public record CreateProductRequest(
     string? FlowerType,
     string? Occasion,
     string? Color,
-    int Stock,
+    int? Stock,
     string? MainImageUrl,
     string? BouquetSize,
     string? Meaning,

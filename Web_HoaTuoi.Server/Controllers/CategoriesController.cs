@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Web_HoaTuoi.Server.Data;
 using Web_HoaTuoi.Server.DTOs;
 using Web_HoaTuoi.Server.Models;
+using Web_HoaTuoi.Server.Services;
 
 namespace Web_HoaTuoi.Server.Controllers;
 
@@ -16,7 +17,32 @@ namespace Web_HoaTuoi.Server.Controllers;
 public class CategoriesController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public CategoriesController(AppDbContext db) => _db = db;
+    private readonly ICloudinaryService _cloudinary;
+
+    public CategoriesController(AppDbContext db, ICloudinaryService cloudinary)
+    {
+        _db = db;
+        _cloudinary = cloudinary;
+    }
+
+    // POST /api/categories/upload-image
+    [HttpPost("upload-image")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult> UploadImage(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "Không nhận được file ảnh." });
+
+        try
+        {
+            var url = await _cloudinary.UploadAsync(file, "hoatuoi/categories");
+            return Ok(new { url });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = $"Upload ảnh thất bại: {ex.Message}" });
+        }
+    }
 
     // GET /api/categories
     [HttpGet]
@@ -81,6 +107,16 @@ public class CategoriesController : ControllerBase
     {
         var category = await _db.Categories.FindAsync(id);
         if (category == null) return NotFound();
+
+        // Nếu đổi ảnh khác → tự động xóa ảnh cũ trên Cloudinary
+        if (!string.IsNullOrEmpty(category.ImageUrl) && category.ImageUrl != req.ImageUrl)
+        {
+            var oldPublicId = _cloudinary.ExtractPublicId(category.ImageUrl);
+            if (!string.IsNullOrEmpty(oldPublicId))
+            {
+                _ = Task.Run(() => _cloudinary.DeleteAsync(oldPublicId));
+            }
+        }
 
         category.Name = req.Name;
         category.Slug = req.Slug;

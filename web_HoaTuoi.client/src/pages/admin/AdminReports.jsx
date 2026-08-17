@@ -138,13 +138,13 @@ export default function AdminReports() {
         }
       };
 
-      // ── SHEET 1: TỔNG QUAN KPI ─────────────────────────────
+      //  SHEET 1: TỔNG QUAN KPI
       const wsOverview = workbook.addWorksheet('Tổng quan KPI');
       wsOverview.views = [{ showGridLines: true }];
       
       const tRow = wsOverview.addRow(["BÁO CÁO THỐNG KÊ TỔNG QUAN KPI - LYP FLOWER"]);
       tRow.getCell(1).font = titleStyle.font;
-      const subRow1 = wsOverview.addRow(["Hệ thống phân tích Kho dữ liệu (DWH & OLAP)"]);
+      const subRow1 = wsOverview.addRow(["Hệ thống phân tích Kho dữ liệu"]);
       subRow1.getCell(1).font = subtitleStyle.font;
       wsOverview.addRow([`Thời điểm xuất báo cáo: ${new Date().toLocaleString("vi-VN")}`]);
       wsOverview.addRow([]);
@@ -158,7 +158,7 @@ export default function AdminReports() {
       const rows = [
         ["Tổng doanh thu DWH", stats.totalRevenue, "VND", "Tổng doanh thu bán hàng tích lũy từ các đơn hàng hoàn thành."],
         ["Lợi nhuận ròng DWH", stats.totalProfit, "VND", "Doanh thu sau khi trừ đi giá vốn sản phẩm và chiết khấu giảm giá."],
-        ["Sản lượng hoa bán ra", stats.totalQty, "Cành/Bó", "Tổng số lượng sản phẩm hoa đã giao thành công đến tay khách hàng."],
+        ["Sản lượng hoa bán ra", stats.totalQty, "Sản phẩm", "Tổng số lượng sản phẩm hoa đã giao thành công đến tay khách hàng."],
         ["Số lượng đơn hàng thành công", stats.totalOrders, "Đơn", "Tổng số lượng giao dịch mua bán thành công."]
       ];
 
@@ -211,7 +211,7 @@ export default function AdminReports() {
       wsOverview.getColumn(3).width = 15;
       wsOverview.getColumn(4).width = 60;
 
-      // ── SHEET 2: DOANH SỐ DANH MỤC ─────────────────────────
+      //  SHEET 2: DOANH SỐ DANH MỤC 
       const wsCategory = workbook.addWorksheet('Doanh số Danh mục');
       wsCategory.views = [{ showGridLines: true }];
       
@@ -299,7 +299,7 @@ export default function AdminReports() {
       wsCategory.getColumn(5).width = 22;
       wsCategory.getColumn(6).width = 22;
 
-      // ── SHEET 3: ĐỊA BÀN GIAO HÀNG ─────────────────────────
+      //  SHEET 3: ĐỊA BÀN GIAO HÀNG 
       const wsLocation = workbook.addWorksheet('Địa bàn giao hàng');
       wsLocation.views = [{ showGridLines: true }];
       
@@ -381,7 +381,7 @@ export default function AdminReports() {
       wsLocation.getColumn(4).width = 25;
       wsLocation.getColumn(5).width = 20;
 
-      // ── SHEET 4: CƠ CẤU GIAO NHẬN ──────────────────────────
+      //  SHEET 4: CƠ CẤU GIAO NHẬN 
       const wsFulfillment = workbook.addWorksheet('Cơ cấu giao nhận');
       wsFulfillment.views = [{ showGridLines: true }];
       
@@ -463,7 +463,7 @@ export default function AdminReports() {
       wsFulfillment.getColumn(4).width = 25;
       wsFulfillment.getColumn(5).width = 20;
 
-      // ── SHEET 5: TOP HOA BÁN CHẠY ──────────────────────────
+      //  SHEET 5: TOP HOA BÁN CHẠY 
       const wsTopProducts = workbook.addWorksheet('Top hoa bán chạy');
       wsTopProducts.views = [{ showGridLines: true }];
       
@@ -506,7 +506,7 @@ export default function AdminReports() {
       wsTopProducts.getColumn(3).width = 40;
       wsTopProducts.getColumn(4).width = 25;
 
-      // ── SHEET 6: PHÂN KHÚC KHÁCH HÀNG ──────────────────────
+      //  SHEET 6: PHÂN KHÚC KHÁCH HÀNG 
       const wsSegments = workbook.addWorksheet('Phân khúc Khách hàng');
       wsSegments.views = [{ showGridLines: true }];
       
@@ -590,8 +590,8 @@ export default function AdminReports() {
       {/* Header với nút đồng bộ */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Báo cáo & Thống kê (DWH)</h1>
-          <p className="text-sm text-gray-500 mt-1">Dữ liệu phân tích trực tiếp từ Data Warehouse (HoaTuoi_DWH)</p>
+          <h1 className="text-xl font-bold text-gray-900">Báo cáo & Thống kê</h1>
+          <p className="text-sm text-gray-500 mt-1">Dữ liệu phân tích trực tiếp từ Data Warehouse</p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -607,7 +607,7 @@ export default function AdminReports() {
             className="flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-md shadow-orange-500/20 active:scale-95 cursor-pointer disabled:opacity-50"
           >
             <RefreshCw size={15} className={syncing ? 'animate-spin' : ''} />
-            {syncing ? 'Đang đồng bộ...' : 'Đồng bộ Kho dữ liệu (ETL)'}
+            {syncing ? 'Đang đồng bộ...' : 'Đồng bộ Kho dữ liệu'}
           </button>
         </div>
       </div>
