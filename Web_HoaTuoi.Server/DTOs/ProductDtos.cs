@@ -62,6 +62,7 @@ public record ProductCardDto(
     decimal? SalePrice,
     bool IsOnSale,
     int CategoryId,
+    string CategoryName,
     string Description,
     string Meaning,
     string Color,

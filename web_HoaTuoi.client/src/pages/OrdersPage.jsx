@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuthStore } from "../store/authStore"
 import { 
-    ChevronLeft, ShoppingBag, Clock, CheckCircle2, Package, XCircle, ChevronRight, X, Loader2
+    ChevronLeft, ShoppingBag, Clock, CheckCircle2, Package, XCircle, ChevronRight, X, Loader2, Star, Camera
 } from "lucide-react"
 import { orderApi } from "../api/orders"
+import { reviewApi } from "../api/reviews"
 import { formatVnd } from "../utils/format"
 import { resolveImage } from "../utils/imageResolver"
 import toast from "react-hot-toast"
@@ -23,6 +24,65 @@ export default function OrdersPage() {
     const [isCancelling, setIsCancelling] = useState(false)
     const [showQrModal, setShowQrModal] = useState(false)
     const [qrInfo, setQrInfo] = useState(null)
+
+    // Trạng thái phục vụ đánh giá sản phẩm trực tiếp từ đơn hàng
+    const [activeReviewKey, setActiveReviewKey] = useState(null); // 'orderId_productId'
+    const [ratings, setRatings] = useState({}); // { productId: number }
+    const [comments, setComments] = useState({}); // { productId: string }
+    const [reviewImages, setReviewImages] = useState({}); // { productId: string[] (base64) }
+    const [submittingReview, setSubmittingReview] = useState({}); // { productId: boolean }
+    const [submittedReviews, setSubmittedReviews] = useState({}); // { 'orderId_productId': { rating, comment } }
+
+    const handleImageUpload = (productId, e) => {
+        const files = Array.from(e.target.files);
+        const promises = files.map(file => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsDataURL(file);
+            });
+        });
+
+        Promise.all(promises).then(base64s => {
+            setReviewImages(prev => ({
+                ...prev,
+                [productId]: [...(prev[productId] || []), ...base64s]
+            }));
+        });
+    };
+
+    const removeImage = (productId, index) => {
+        setReviewImages(prev => ({
+            ...prev,
+            [productId]: prev[productId].filter((_, idx) => idx !== index)
+        }));
+    };
+
+    const handleSubmitReview = async (orderId, productId) => {
+        const rating = ratings[productId] || 5;
+        const comment = comments[productId] || "";
+        const imageBase64List = reviewImages[productId] || [];
+
+        setSubmittingReview(prev => ({ ...prev, [productId]: true }));
+        try {
+            await reviewApi.createReview({
+                productId,
+                rating,
+                comment,
+                imageBase64List
+            });
+            toast.success("Cảm ơn bạn đã đánh giá sản phẩm!");
+            setSubmittedReviews(prev => ({
+                ...prev,
+                [`${orderId}_${productId}`]: { rating, comment }
+            }));
+            setActiveReviewKey(null);
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Không thể gửi đánh giá.");
+        } finally {
+            setSubmittingReview(prev => ({ ...prev, [productId]: false }));
+        }
+    };
 
     const handlePayNow = () => {
         setQrInfo({
@@ -304,18 +364,144 @@ export default function OrdersPage() {
                             <div>
                                 <p className="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-3">Sản phẩm</p>
                                 <div className="space-y-3">
-                                    {selectedOrder.items?.map((item, i) => (
-                                        <div key={i} className="flex gap-4 p-3 bg-white border border-gray-100 rounded-xl">
-                                            <img src={resolveImage(item.mainImageUrl || item.productImage)} alt={item.productName} className="w-16 h-16 object-cover rounded-lg" />
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="font-bold text-gray-900 text-sm truncate">{item.productName}</h4>
-                                                <div className="flex items-center justify-between mt-2">
-                                                    <span className="text-xs text-gray-500">x{item.quantity}</span>
-                                                    <span className="text-sm font-bold text-gray-900">{formatVnd(item.unitPrice)}</span>
+                                    {selectedOrder.items?.map((item, i) => {
+                                        const reviewKey = `${selectedOrder.id}_${item.productId}`;
+                                        const isCompleted = selectedOrder.status?.toLowerCase() === 'completed';
+                                        const isEditingReview = activeReviewKey === reviewKey;
+                                        const submittedData = submittedReviews[reviewKey];
+
+                                        return (
+                                            <div key={i} className="p-3 bg-white border border-gray-100 rounded-xl space-y-3">
+                                                <div className="flex gap-4">
+                                                    <img src={resolveImage(item.mainImageUrl || item.productImage)} alt={item.productName} className="w-16 h-16 object-cover rounded-lg" />
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="font-bold text-gray-900 text-sm truncate">{item.productName}</h4>
+                                                        <div className="flex items-center justify-between mt-2">
+                                                            <span className="text-xs text-gray-500">x{item.quantity}</span>
+                                                            <span className="text-sm font-bold text-gray-900">{formatVnd(item.unitPrice)}</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
+
+                                                {/* Khung Đánh giá inline */}
+                                                {isCompleted && (
+                                                    <div className="pt-2 border-t border-dashed border-gray-100">
+                                                        {!submittedData ? (
+                                                            <div>
+                                                                {!isEditingReview ? (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setActiveReviewKey(reviewKey);
+                                                                            if (!ratings[item.productId]) {
+                                                                                setRatings(prev => ({ ...prev, [item.productId]: 5 }));
+                                                                            }
+                                                                        }}
+                                                                        className="inline-flex items-center gap-1.5 text-[10px] font-black text-pink-650 bg-pink-50 hover:bg-pink-100 px-3.5 py-2 rounded-xl uppercase tracking-wider transition-all cursor-pointer"
+                                                                    >
+                                                                        <Star size={11} className="fill-pink-600 text-pink-600" /> Đánh giá sản phẩm
+                                                                    </button>
+                                                                ) : (
+                                                                    <div className="bg-gray-50/50 border border-gray-100 rounded-2xl p-4 space-y-4 animate-in slide-in-from-top duration-300">
+                                                                        {/* Chọn sao */}
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="text-xs font-bold text-gray-500">Đánh giá:</span>
+                                                                            <div className="flex gap-1">
+                                                                                {[1, 2, 3, 4, 5].map((star) => {
+                                                                                    const isSelected = star <= (ratings[item.productId] || 5);
+                                                                                    return (
+                                                                                        <button
+                                                                                            key={star}
+                                                                                            type="button"
+                                                                                            onClick={() => setRatings(prev => ({ ...prev, [item.productId]: star }))}
+                                                                                            className="text-amber-400 hover:scale-110 transition-transform cursor-pointer"
+                                                                                        >
+                                                                                            <Star size={18} className={isSelected ? "fill-amber-400 text-amber-400" : "text-gray-300"} />
+                                                                                        </button>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* Ý kiến */}
+                                                                        <textarea
+                                                                            value={comments[item.productId] || ""}
+                                                                            onChange={(e) => setComments(prev => ({ ...prev, [item.productId]: e.target.value }))}
+                                                                            placeholder="Hãy chia sẻ cảm nhận của bạn về bó hoa này nhé..."
+                                                                            rows={3}
+                                                                            className="w-full text-xs p-3 bg-white border border-gray-150 rounded-xl focus:outline-none focus:border-pink-500 transition-colors resize-none placeholder-gray-400 text-gray-800"
+                                                                        />
+
+                                                                        {/* Tải ảnh thực tế */}
+                                                                        <div className="space-y-2">
+                                                                            <label className="inline-flex items-center gap-1.5 cursor-pointer text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white border border-gray-150 hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors">
+                                                                                <Camera size={12} /> Đính kèm ảnh thực tế
+                                                                                <input
+                                                                                    type="file"
+                                                                                    multiple
+                                                                                    accept="image/*"
+                                                                                    onChange={(e) => handleImageUpload(item.productId, e)}
+                                                                                    className="hidden"
+                                                                                />
+                                                                            </label>
+
+                                                                            {reviewImages[item.productId]?.length > 0 && (
+                                                                                <div className="flex flex-wrap gap-2 pt-1">
+                                                                                    {reviewImages[item.productId].map((img, idx) => (
+                                                                                        <div key={idx} className="relative w-12 h-12 border border-gray-100 rounded-lg overflow-hidden">
+                                                                                            <img src={img} className="w-full h-full object-cover" />
+                                                                                            <button
+                                                                                                type="button"
+                                                                                                onClick={() => removeImage(item.productId, idx)}
+                                                                                                className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full p-0.5 hover:bg-red-500 transition-colors cursor-pointer"
+                                                                                            >
+                                                                                                <X size={8} />
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {/* Thao tác */}
+                                                                        <div className="flex gap-2 justify-end">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setActiveReviewKey(null)}
+                                                                                className="px-3 py-2 text-[10px] font-bold uppercase text-gray-500 hover:bg-gray-150 rounded-xl transition-colors cursor-pointer"
+                                                                            >
+                                                                                Hủy
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                disabled={submittingReview[item.productId]}
+                                                                                onClick={() => handleSubmitReview(selectedOrder.id, item.productId)}
+                                                                                className="flex items-center gap-1.5 bg-[#E92E69] text-white hover:bg-pink-650 px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-colors shadow-lg shadow-pink-100 cursor-pointer"
+                                                                            >
+                                                                                {submittingReview[item.productId] ? (
+                                                                                    <>
+                                                                                        <Loader2 size={10} className="animate-spin" /> Đang gửi...
+                                                                                    </>
+                                                                                ) : "Gửi đánh giá"}
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="bg-green-50/50 border border-green-100 rounded-xl p-3 flex flex-col gap-1.5">
+                                                                <div className="flex items-center gap-1.5 text-xs text-green-700 font-bold">
+                                                                    <CheckCircle2 size={14} /> Bạn đã đánh giá {submittedData.rating} sao cho sản phẩm này
+                                                                </div>
+                                                                {submittedData.comment && (
+                                                                    <p className="text-xs text-gray-500 italic mt-0.5">"{submittedData.comment}"</p>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
 

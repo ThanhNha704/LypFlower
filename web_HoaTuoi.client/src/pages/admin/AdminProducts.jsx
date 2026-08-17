@@ -395,7 +395,7 @@ export default function AdminProducts() {
                       </td>
 
                       {/* Danh mục */}
-                      <td className="px-6 py-4 text-gray-500 font-medium">{p.category?.name}</td>
+                      <td className="px-6 py-4 text-gray-500 font-medium">{p.categoryName}</td>
 
                       {/* Giá */}
                       <td className="px-6 py-4">
