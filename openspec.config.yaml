@@ -1,0 +1,9 @@
+version: "1.2.0"
+project_type: "Greenfield"
+mode: "SDD" # Spec-Driven Development
+rules:
+  - no_code_without_spec: true
+  - prd_is_source_of_truth: true
+commands:
+  propose: "/opsx:propose"
+  apply: "/opsx:apply"

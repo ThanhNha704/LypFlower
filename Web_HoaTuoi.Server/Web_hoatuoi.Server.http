@@ -1,0 +1,6 @@
+﻿@Web_HoaTuoi.Server_HostAddress = http://localhost:5063
+
+GET {{Web_HoaTuoi.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

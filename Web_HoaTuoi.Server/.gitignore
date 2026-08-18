@@ -1,0 +1,10 @@
+.vs/
+bin/
+obj/
+node_modules/
+.env
+dist/
+build/
+.env.local
+.vscode/
+.env.*
