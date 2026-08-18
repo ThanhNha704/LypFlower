@@ -8,7 +8,7 @@ import { resolveImage } from '../utils/imageResolver';
 import apiClient from '../api/client';
 import { addressApi } from '../api/addresses';
 import toast from 'react-hot-toast';
-import { MapPin, QrCode, Banknote, X, CheckCircle, User, Phone, MessageSquare, Calendar, ChevronRight, ShoppingBag, CreditCard, Truck, ArrowLeft, Loader2 } from 'lucide-react';
+import { MapPin, QrCode, Banknote, X, CheckCircle, User, Phone, MessageSquare, Calendar, ChevronRight, ShoppingBag, CreditCard, Truck, ArrowLeft, Loader2, Ticket } from 'lucide-react';
 import LocationPicker from '../components/common/LocationPicker';
 
 // ============================================================
@@ -329,6 +329,57 @@ export default function CheckoutPage() {
   const shippingFee = isStorePickup ? 0 : 30000;
   const [savedAddresses, setSavedAddresses] = useState([]);
 
+  // States cho Voucher
+  const [voucherInput, setVoucherInput] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
+  const [discountAmt, setDiscountAmt] = useState(0);
+  const [checkingVoucher, setCheckingVoucher] = useState(false);
+
+  async function handleApplyVoucher() {
+    if (!voucherInput.trim()) return toast.error('Vui lòng nhập mã giảm giá');
+    setCheckingVoucher(true);
+    try {
+      const res = await apiClient.get(`/vouchers/check?code=${voucherInput.trim().toUpperCase()}`);
+      const voucher = res.data;
+      
+      if (voucher.minOrderValue && subtotal < voucher.minOrderValue) {
+        toast.error(`Đơn hàng tối thiểu phải từ ${formatVnd(voucher.minOrderValue)} để áp dụng mã này`);
+        setCheckingVoucher(false);
+        return;
+      }
+      
+      let discount = 0;
+      if (voucher.discountType === 'Percentage') {
+        discount = subtotal * (voucher.discountValue / 100);
+        if (voucher.maxDiscountAmount && discount > voucher.maxDiscountAmount) {
+          discount = voucher.maxDiscountAmount;
+        }
+      } else {
+        discount = voucher.discountValue;
+      }
+      
+      if (discount > subtotal) discount = subtotal;
+      
+      setAppliedVoucher(voucher);
+      setDiscountAmt(discount);
+      toast.success('Áp dụng mã giảm giá thành công! 🎉');
+    } catch (err) {
+      toast.error(err.response?.data?.message ?? 'Mã giảm giá không hợp lệ hoặc đã hết hạn');
+      setAppliedVoucher(null);
+      setDiscountAmt(0);
+    } finally {
+      setCheckingVoucher(false);
+    }
+  }
+
+  function handleRemoveVoucher() {
+    setAppliedVoucher(null);
+    setDiscountAmt(0);
+    setVoucherInput('');
+    toast.success('Đã gỡ mã giảm giá');
+  }
+
+
   useEffect(() => {
     if (user) {
       setForm(f => ({
@@ -369,8 +420,7 @@ export default function CheckoutPage() {
   };
 
   const subtotal = state?.finalAmount ?? items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-  const discountAmount = state?.discountAmount ?? 0;
-  const finalAmount = subtotal + shippingFee;
+  const finalAmount = Math.max(0, subtotal + shippingFee - discountAmt);
 
   function handleChange(e) { setForm(f => ({ ...f, [e.target.name]: e.target.value })); }
 
@@ -388,7 +438,7 @@ export default function CheckoutPage() {
         ...form,
         deliveryTime: form.deliveryTime ? form.deliveryTime : null,
         messageCard: form.messageCard ? form.messageCard : null,
-        voucherCode: form.voucherCode ? form.voucherCode : null,
+        voucherCode: appliedVoucher ? appliedVoucher.code : null,
         isStorePickup,
         shippingFee,
         items: items.map(i => ({
@@ -672,16 +722,54 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
+                  {/* Ô nhập mã giảm giá */}
+                  <div className="space-y-1.5 border-t border-dashed border-gray-200 dark:border-slate-700 pt-3">
+                    <label className="section-label flex items-center gap-1">
+                      <Ticket size={11} className="rotate-45 text-amber-700 dark:text-amber-500" /> Mã giảm giá / Voucher
+                    </label>
+                    {appliedVoucher ? (
+                      <div className="flex items-center justify-between p-2 bg-green-50/50 dark:bg-green-950/20 border border-green-200/60 dark:border-green-800/40 rounded-xl animate-in fade-in zoom-in-95 duration-200">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-mono font-bold text-green-700 dark:text-green-400 tracking-wider uppercase">{appliedVoucher.code}</p>
+                          <p className="text-[9px] text-green-600 dark:text-green-500 truncate">
+                            Đã giảm {appliedVoucher.discountType === 'Percentage' ? `${appliedVoucher.discountValue}%` : formatVnd(appliedVoucher.discountValue)}
+                          </p>
+                        </div>
+                        <button type="button" onClick={handleRemoveVoucher} className="p-1 text-green-700 dark:text-green-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors shrink-0">
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={voucherInput}
+                          onChange={e => setVoucherInput(e.target.value)}
+                          placeholder="MÃ GIẢM GIÁ..."
+                          className="input h-8 text-[11px] font-mono uppercase tracking-wider bg-gray-50/50 dark:bg-slate-900/30 border-gray-150 dark:border-slate-800 focus:bg-white dark:focus:bg-[#222] flex-1"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleApplyVoucher}
+                          disabled={checkingVoucher}
+                          className="h-8 px-3 rounded-xl bg-amber-600 text-white text-[11px] font-bold hover:bg-amber-700 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center shrink-0"
+                        >
+                          {checkingVoucher ? <Loader2 size={10} className="animate-spin" /> : 'Áp dụng'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Tổng kết tiền */}
                   <div className="bg-gray-50/50 dark:bg-slate-900/30 rounded-xl p-3 space-y-2">
                     <div className="flex justify-between items-center text-[10px]">
                       <span className="text-gray-500 font-medium">Tạm tính</span>
                       <span className="font-bold text-gray-800 dark:text-gray-200">{formatVnd(subtotal)}</span>
                     </div>
-                    {discountAmount > 0 && (
+                    {discountAmt > 0 && (
                       <div className="flex justify-between items-center text-[10px]">
                         <span className="text-amber-600 dark:text-amber-500 font-medium">Giảm giá voucher</span>
-                        <span className="font-bold text-amber-600 dark:text-amber-500">- {formatVnd(discountAmount)}</span>
+                        <span className="font-bold text-amber-600 dark:text-amber-500">- {formatVnd(discountAmt)}</span>
                       </div>
                     )}
                     <div className="flex justify-between items-center text-[10px]">
