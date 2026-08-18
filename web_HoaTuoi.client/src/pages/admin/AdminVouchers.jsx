@@ -71,8 +71,9 @@ export default function AdminVouchers() {
   }
 
   async function handleSave() {
-    if (!form.code || !form.discountValue || !form.validFrom || !form.validUntil) {
-      return toast.error('Vui lòng điền đầy đủ Mã, Giá trị giảm và Thời gian áp dụng');
+    const dv = Number(form.discountValue);
+    if (!form.code.trim() || isNaN(dv) || dv <= 0 || !form.validFrom || !form.validUntil) {
+      return toast.error('Vui lòng điền đầy đủ Mã, Giá trị giảm (> 0) và Thời gian áp dụng');
     }
 
     setLoading(true);

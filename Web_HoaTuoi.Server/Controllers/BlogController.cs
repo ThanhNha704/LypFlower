@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Web_HoaTuoi.Server.Data;
 using Web_HoaTuoi.Server.Models;
+using Web_HoaTuoi.Server.Services;
 using System.Text.Json.Serialization;
 using System.Security.Claims;
 
@@ -12,7 +13,12 @@ namespace Web_HoaTuoi.Server.Controllers;
 public class BlogController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public BlogController(AppDbContext db) => _db = db;
+    private readonly ICloudinaryService _cloudinary;
+    public BlogController(AppDbContext db, ICloudinaryService cloudinary)
+    {
+        _db = db;
+        _cloudinary = cloudinary;
+    }
 
     public record BlogPostDto(
         int Id, string Title, string Slug, 
@@ -35,6 +41,15 @@ public class BlogController : ControllerBase
         public string CoverImageUrl { get; set; } = string.Empty;
         public int Type { get; set; } = 0;
         public bool IsPublished { get; set; }
+    }
+
+    // POST /api/blog/upload-image
+    [HttpPost("upload-image")]
+    public async Task<ActionResult> UploadImage(IFormFile file)
+    {
+        if (file == null || file.Length == 0) return BadRequest("Không có file nào được gửi lên.");
+        var url = await _cloudinary.UploadAsync(file, "hoatuoi/blog");
+        return Ok(new { url });
     }
 
     [HttpGet]

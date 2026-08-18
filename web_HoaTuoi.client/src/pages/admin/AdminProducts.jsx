@@ -49,8 +49,9 @@ export default function AdminProducts() {
   const [imageTab, setImageTab] = useState('upload'); // 'upload' | 'url'
   const [uploadingMain, setUploadingMain] = useState(false);
 
-  // Ảnh phụ state (chỉ dùng khi edit)
+  // Ảnh phụ state
   const [subImages, setSubImages] = useState([]);
+  const [pendingSubImages, setPendingSubImages] = useState([]); // ảnh phụ chờ khi tạo mới
   const [uploadingSub, setUploadingSub] = useState(false);
 
   // ── Nhập kho state ────────────────────────────────────
@@ -113,6 +114,7 @@ export default function AdminProducts() {
     setForm(EMPTY_FORM); 
     setEditId(null); 
     setSubImages([]);
+    setPendingSubImages([]);
     setModal('edit'); 
   }
   
@@ -174,15 +176,20 @@ export default function AdminProducts() {
       const res = await apiClient.post('/products/upload-image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      
-      // Save directly to backend
-      const addRes = await apiClient.post(`/products/${editId}/images`, {
-        imageUrl: res.data.url,
-        displayOrder: subImages.length + 1
-      });
 
-      setSubImages(prev => [...prev, addRes.data]);
-      toast.success('Thêm ảnh phụ thành công!');
+      if (editId) {
+        // Khi sửa sản phẩm: lưu thẳng lên backend
+        const addRes = await apiClient.post(`/products/${editId}/images`, {
+          imageUrl: res.data.url,
+          displayOrder: subImages.length + 1
+        });
+        setSubImages(prev => [...prev, addRes.data]);
+        toast.success('Thêm ảnh phụ thành công!');
+      } else {
+        // Khi tạo mới: lưu tạm vào state, sẽ gán vào sản phẩm sau khi tạo xong
+        setPendingSubImages(prev => [...prev, { tempId: Date.now(), imageUrl: res.data.url }]);
+        toast.success('Đã thêm ảnh vào hàng chờ!');
+      }
     } catch {
       toast.error('Lỗi khi thêm ảnh phụ');
     } finally {
@@ -221,9 +228,20 @@ export default function AdminProducts() {
         stock: form.stock !== null && form.stock !== undefined && form.stock !== '' ? Number(form.stock) : 0,
         weightKg: form.weightKg ? Number(form.weightKg) : null,
       };
-      if (editId) await apiClient.put(`/products/${editId}`, payload);
-      else await apiClient.post('/products', payload);
-      toast.success(editId ? 'Cập nhật thành công!' : 'Tạo sản phẩm thành công!');
+      if (editId) {
+        await apiClient.put(`/products/${editId}`, payload);
+        toast.success('Cập nhật thành công!');
+      } else {
+        const res = await apiClient.post('/products', payload);
+        const newId = res.data?.id ?? res.data?.productId ?? res.data;
+        // Gán ảnh phụ đang chờ vào sản phẩm mới
+        if (newId && pendingSubImages.length > 0) {
+          await Promise.all(pendingSubImages.map((img, idx) =>
+            apiClient.post(`/products/${newId}/images`, { imageUrl: img.imageUrl, displayOrder: idx + 1 })
+          ));
+        }
+        toast.success('Tạo sản phẩm thành công!');
+      }
       setModal(null);
       fetchProducts();
     } catch (err) {
@@ -702,41 +720,53 @@ export default function AdminProducts() {
                 )}
               </div>
 
-              {/* ── ẢNH PHỤ (Chỉ khi Edit) ── */}
+              {/* ── ẢNH PHỤ ── */}
               <div className="col-span-2 border-t pt-3 mt-1">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Thư viện ảnh phụ</label>
-                {editId ? (
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap gap-2.5">
-                      {subImages.map(img => (
-                        <div key={img.id} className="relative group w-16 h-16 rounded-xl overflow-hidden shadow border bg-gray-50 flex-shrink-0">
-                          <img src={resolveImage(img.imageUrl)} className="w-full h-full object-cover" />
-                          <button
-                            type="button"
-                            onClick={() => triggerDeleteSubImage(img.id)}
-                            className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
-                          >
-                            <X size={10} />
-                          </button>
-                        </div>
-                      ))}
-                      
-                      {subImages.length < 5 && (
-                        <label className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-200 hover:border-pink-300 bg-gray-50/20 hover:bg-pink-50/10 flex flex-col items-center justify-center cursor-pointer transition-all">
-                          <Plus size={18} className="text-gray-400" />
-                          <span className="text-[8px] font-bold text-gray-400 mt-0.5">Thêm ảnh</span>
-                          <input type="file" accept="image/*" className="hidden" onChange={handleSubImageUpload} disabled={uploadingSub} />
-                        </label>
-                      )}
-                    </div>
-                    {uploadingSub && <p className="text-[10px] text-pink-500 font-bold animate-pulse">Đang tải ảnh phụ...</p>}
-                    <p className="text-[10px] text-gray-400 font-medium">Hỗ trợ hiển thị tối đa 5 ảnh phụ kiểu slide/shopee ở trang chi tiết sản phẩm.</p>
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2.5">
+                    {/* Ảnh phụ đã lưu (khi edit) */}
+                    {subImages.map(img => (
+                      <div key={img.id} className="relative group w-16 h-16 rounded-xl overflow-hidden shadow border bg-gray-50 flex-shrink-0">
+                        <img src={resolveImage(img.imageUrl)} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => triggerDeleteSubImage(img.id)}
+                          className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    ))}
+                    {/* Ảnh phụ tạm (khi tạo mới) */}
+                    {pendingSubImages.map((img, idx) => (
+                      <div key={img.tempId} className="relative group w-16 h-16 rounded-xl overflow-hidden shadow border border-dashed border-amber-300 bg-amber-50 flex-shrink-0">
+                        <img src={resolveImage(img.imageUrl)} className="w-full h-full object-cover" />
+                        <div className="absolute bottom-0 left-0 right-0 bg-amber-400/80 text-[7px] text-white font-bold text-center py-0.5">Chờ lưu</div>
+                        <button
+                          type="button"
+                          onClick={() => setPendingSubImages(prev => prev.filter((_, i) => i !== idx))}
+                          className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    ))}
+                    {/* Nút thêm ảnh */}
+                    {(subImages.length + pendingSubImages.length) < 5 && (
+                      <label className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-200 hover:border-pink-300 bg-gray-50/20 hover:bg-pink-50/10 flex flex-col items-center justify-center cursor-pointer transition-all">
+                        <Plus size={18} className="text-gray-400" />
+                        <span className="text-[8px] font-bold text-gray-400 mt-0.5">Thêm ảnh</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={handleSubImageUpload} disabled={uploadingSub} />
+                      </label>
+                    )}
                   </div>
-                ) : (
-                  <div className="p-3.5 bg-gray-50 border border-gray-150 rounded-2xl text-center text-xs text-gray-500 font-medium">
-                    ⚠️ Vui lòng hoàn thành lưu sản phẩm mới trước để có thể bắt đầu tải lên bộ sưu tập ảnh phụ.
-                  </div>
-                )}
+                  {uploadingSub && <p className="text-[10px] text-pink-500 font-bold animate-pulse">Đang tải ảnh phụ...</p>}
+                  {!editId && pendingSubImages.length > 0 && (
+                    <p className="text-[10px] text-amber-600 font-medium">💡 {pendingSubImages.length} ảnh sẽ được gắn vào sản phẩm sau khi nhấn Lưu.</p>
+                  )}
+                  <p className="text-[10px] text-gray-400 font-medium">Hỗ trợ hiển thị tối đa 5 ảnh phụ kiểu slide/shopee ở trang chi tiết sản phẩm.</p>
+                </div>
               </div>
 
               {/* Description */}

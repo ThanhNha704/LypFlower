@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
-import { GoogleLogin } from "@react-oauth/google"
 import { Toaster } from "react-hot-toast"
 import { useAuthStore } from "../store/authStore"
 import { authApi } from "../api/auth"
@@ -95,31 +94,6 @@ export default function LoginPage() {
             console.error("Auth error:", err)
             const msg = err.response?.data?.message || "Lỗi: " + (err.message || "Không thể kết nối đến máy chủ")
             toast.error(msg)
-        } finally {
-            setLoading(false)
-        }
-    }
-
-
-    async function handleGoogleSuccess(credentialResponse) {
-        setLoading(true)
-        try {
-            const data = await authApi.googleLogin(credentialResponse.credential)
-            login(data)
-            if (data.isNewUser) {
-                toast.success("Tạo tài khoản Google thành công! 🎉")
-            } else {
-                toast.success("Chào mừng bạn quay trở lại! 🌸")
-            }
-
-            let defaultRedirect = "/";
-            if (data.user?.role === "Admin") defaultRedirect = "/admin";
-            else if (data.user?.role === "Staff") defaultRedirect = "/nhan-vien";
-
-            const from = new URLSearchParams(location.search).get('from') || defaultRedirect;
-            navigate(from, { replace: true })
-        } catch (err) {
-            toast.error("Lỗi Google: Đảm bảo Origin đã được cấp quyền")
         } finally {
             setLoading(false)
         }
@@ -271,24 +245,7 @@ export default function LoginPage() {
                         </button>
                     </form>
 
-                    <div className="relative my-4.5 flex items-center">
-                        <div className="flex-1 border-t border-gray-100"></div>
-                        <span className="px-3 text-[10px] font-bold text-gray-300 uppercase letter-wider">Hoặc tiếp tục với</span>
-                        <div className="flex-1 border-t border-gray-100"></div>
-                    </div>
-
                     <div className="flex flex-col items-center gap-4">
-                        <div className="w-full flex justify-center">
-                            <GoogleLogin
-                                onSuccess={handleGoogleSuccess}
-                                onError={() => toast.error("Đăng nhập Google thất bại")}
-                                shape="pill"
-                                size="medium"
-                                width="100%"
-                                theme="outline"
-                            />
-                        </div>
-
                         <p className="text-[12px] font-medium text-gray-500">
                             {isRegister ? "Bạn đã có tài khoản?" : "Chưa có tài khoản thành viên?"}
                             <button

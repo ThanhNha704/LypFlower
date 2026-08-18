@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { GoogleOAuthProvider } from '@react-oauth/google'
 import { useEffect } from 'react'
 import { useThemeStore } from './store/themeStore'
 
@@ -46,9 +45,6 @@ import StaffDashboard from './pages/staff/StaffDashboard'
 import AdminAiChat from './pages/admin/AdminAiChat'
 
 
-// const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
-  || '964229649648-sh6dkl685l5731kf5q2clprkkdt6sqv9.apps.googleusercontent.com'
 
 export default function App() {
     const initTheme = useThemeStore((s) => s.initTheme)
@@ -58,7 +54,7 @@ export default function App() {
     }, [initTheme])
 
     return (
-        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        <>
             <BrowserRouter>
                 <ScrollToTop />
 
@@ -140,6 +136,6 @@ export default function App() {
                 </Routes>
 
             </BrowserRouter>
-        </GoogleOAuthProvider>
+        </>
     )
 }
