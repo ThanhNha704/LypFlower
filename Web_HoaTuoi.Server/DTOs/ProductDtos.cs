@@ -14,6 +14,7 @@ public class ProductFilterRequest
     public string? Material { get; init; }
     public string? Style { get; init; }
     public string? Color { get; init; }
+    public string? FlowerType { get; init; }
     public string? Occasion { get; init; }
     public decimal? MinPrice { get; init; }
     public decimal? MaxPrice { get; init; }

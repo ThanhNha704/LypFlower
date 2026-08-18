@@ -48,16 +48,27 @@ public class CategoriesController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<CategoryDto>>> GetAll()
     {
-        var cats = await _db.Categories
-       .Where(c => c.IsActive && c.ParentCategoryId == null)
-            .OrderBy(c => c.SortOrder)
-  .Select(c => new CategoryDto(
-    c.Id, c.Name, c.Slug, c.Description, c.ImageUrl, c.Icon, c.SortOrder,
-    c.Products.Count(p => p.IsActive)
-            ))
-    .ToListAsync();
+        var allCats = await _db.Categories
+            .Where(c => c.IsActive)
+            .Include(c => c.Products)
+            .ToListAsync();
 
-        return Ok(cats);
+        var rootCats = allCats
+            .Where(c => c.ParentCategoryId == null)
+            .OrderBy(c => c.SortOrder)
+            .Select(c =>
+            {
+                var childIds = allCats.Where(ch => ch.ParentCategoryId == c.Id).Select(ch => ch.Id).ToHashSet();
+                childIds.Add(c.Id);
+                var count = _db.Products.Count(p => p.IsActive && childIds.Contains(p.CategoryId));
+                return new CategoryDto(
+                    c.Id, c.Name, c.Slug, c.Description, c.ImageUrl, c.Icon, c.SortOrder,
+                    count
+                );
+            })
+            .ToList();
+
+        return Ok(rootCats);
     }
 
     // GET /api/categories/{slug}
@@ -150,5 +161,64 @@ public class CategoriesController : ControllerBase
         await _db.SaveChangesAsync();
 
         return NoContent();
+    }
+
+    // GET /api/categories/filters
+    [HttpGet("filters")]
+    public async Task<ActionResult> GetActiveFilters()
+    {
+        var activeProducts = await _db.Products
+            .Where(p => p.IsActive)
+            .Select(p => new { p.FlowerType, p.Occasion })
+            .ToListAsync();
+
+        var rawFlowerTypes = activeProducts
+            .SelectMany(p => (p.FlowerType ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries))
+            .Select(x => x.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .ToList();
+
+        var flowerTypeGroups = new HashSet<string>();
+        foreach (var ft in rawFlowerTypes)
+        {
+            if (ft.Contains("Hồng", StringComparison.OrdinalIgnoreCase)) flowerTypeGroups.Add("Hoa Hồng");
+            else if (ft.Contains("Lan", StringComparison.OrdinalIgnoreCase)) flowerTypeGroups.Add("Lan Hồ Điệp");
+            else if (ft.Contains("Tulip", StringComparison.OrdinalIgnoreCase)) flowerTypeGroups.Add("Hoa Tulip");
+            else if (ft.Contains("Hướng Dương", StringComparison.OrdinalIgnoreCase)) flowerTypeGroups.Add("Hướng Dương");
+            else if (ft.Contains("Cẩm Tú Cầu", StringComparison.OrdinalIgnoreCase)) flowerTypeGroups.Add("Cẩm Tú Cầu");
+            else if (ft.Contains("Baby", StringComparison.OrdinalIgnoreCase)) flowerTypeGroups.Add("Hoa Baby");
+            else if (ft.Contains("Cúc", StringComparison.OrdinalIgnoreCase)) flowerTypeGroups.Add("Hoa Cúc");
+            else if (ft.Contains("Sen", StringComparison.OrdinalIgnoreCase)) flowerTypeGroups.Add("Hoa Sen");
+            else if (ft.Contains("Cát Tường", StringComparison.OrdinalIgnoreCase)) flowerTypeGroups.Add("Cát Tường");
+            else if (ft.Contains("Cẩm Chướng", StringComparison.OrdinalIgnoreCase)) flowerTypeGroups.Add("Cẩm Chướng");
+            else if (ft.Contains("Thạch Thảo", StringComparison.OrdinalIgnoreCase)) flowerTypeGroups.Add("Thạch Thảo");
+            else if (ft.Contains("Sáp", StringComparison.OrdinalIgnoreCase) || ft.Contains("Khô", StringComparison.OrdinalIgnoreCase)) flowerTypeGroups.Add("Hoa Sáp & Khô");
+            else flowerTypeGroups.Add(ft);
+        }
+
+        var flowerTypes = flowerTypeGroups.OrderBy(x => x).ToList();
+
+        var occasions = activeProducts
+            .SelectMany(p => (p.Occasion ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries))
+            .Select(x => x.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Distinct()
+            .OrderBy(x => x)
+            .ToList();
+
+        return Ok(new { flowerTypes, occasions });
+    }
+
+    [HttpGet("fix-image")]
+    public async Task<ActionResult> FixImage()
+    {
+        var category = await _db.Categories.FindAsync(50);
+        if (category != null)
+        {
+            category.ImageUrl = "/images/categories/goi-hoa-dinh-ky.jpg";
+            await _db.SaveChangesAsync();
+            return Ok("Fixed");
+        }
+        return NotFound();
     }
 }

@@ -25,6 +25,7 @@ export default function ProductDetailPage() {
   const [images, setImages] = useState([]);
   const addItem = useCartStore(s => s.addItem);
   const { user } = useAuthStore();
+  const [canReview, setCanReview] = useState(false);
   const wishlistIds = useWishlistStore(s => s.ids);
   const toggleWishlist = useWishlistStore(s => s.toggle);
   const isWishlisted = product ? wishlistIds.includes(product.id) : false;
@@ -35,6 +36,27 @@ export default function ProductDetailPage() {
       .then(res => setProduct(res))
       .finally(() => setLoading(false));
   }, [slug]);
+
+  useEffect(() => {
+    if (user && product) {
+      reviewApi.checkCanReview(product.id)
+        .then(res => {
+          setCanReview(res.canReview);
+          if (res.existingReview) {
+            setReviewForm(prev => ({
+              ...prev,
+              rating: res.existingReview.rating,
+              comment: res.existingReview.comment
+            }));
+            if (res.existingReview.images) {
+              // Set existing images
+              setImages(res.existingReview.images);
+            }
+          }
+        })
+        .catch(() => setCanReview(false));
+    }
+  }, [user, product]);
 
   if (loading) return (
     <div className="max-w-7xl mx-auto px-4 py-12">
@@ -344,6 +366,10 @@ export default function ProductDetailPage() {
                 <p className="text-gray-600 mb-4">Vui lòng đăng nhập để gửi đánh giá cho sản phẩm này.</p>
                 <Link to="/dang-nhap" className="btn-primary inline-block shadow-md">Đăng nhập nhanh</Link>
               </div>
+            ) : !canReview ? (
+              <div className="text-center py-6 bg-white rounded-xl border border-gray-100 shadow-sm">
+                <p className="text-gray-600">Bạn cần mua sản phẩm này và nhận hàng thành công để có thể đánh giá.</p>
+              </div>
             ) : (
               <form onSubmit={handleReviewSubmit} className="space-y-4">
                 <div className="bg-white p-4 rounded-xl border border-gray-100">
@@ -379,7 +405,7 @@ export default function ProductDetailPage() {
                   <div className="flex flex-wrap gap-3 mt-3">
                     {images.map((img, idx) => (
                       <div key={idx} className="relative w-24 h-24 rounded-xl overflow-hidden border border-gray-200 shadow-sm group">
-                        <img src={img} alt="review" className="w-full h-full object-cover" />
+                        <img src={img.startsWith('data:') ? img : resolveImage(img)} alt="review" className="w-full h-full object-cover" />
                         <button type="button" onClick={() => removeImage(idx)} className="absolute top-1 right-1 bg-white/90 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:bg-gray-100">
                           <X size={14} className="text-gray-700" />
                         </button>

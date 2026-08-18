@@ -13,5 +13,5 @@ public class BlogPost
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public bool IsPublished { get; set; } = false;
-    public string Type { get; set; } = "Blog"; // Blog or Lookbook
+    public int Type { get; set; } = 0; // 0 = Blog/Cảm Hứng, 1 = Lookbook
 }

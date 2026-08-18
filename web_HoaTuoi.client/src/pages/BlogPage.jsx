@@ -11,7 +11,10 @@ function formatBlogDate(createdAt) {
 }
 
 function blogTag(type) {
-    return type === "Lookbook" ? "BỘ SƯU TẬP HOA" : "CẢM HỨNG HOA";
+    if (type === 0) return "Kiến thức về hoa";
+    if (type === 1) return "Ý nghĩa hoa";
+    if (type === 2) return "Chăm sóc hoa";
+    return "Tin tức";
 }
 
 export default function BlogPage() {
@@ -34,31 +37,20 @@ export default function BlogPage() {
     return (
         <div className="bg-[#faf7f2] dark:bg-[#121212] transition-colors min-h-screen pb-20">
 
-            {/* Banner */}
-            <div className="relative h-64 md:h-80 w-full overflow-hidden flex items-center justify-center">
-                <div className="absolute inset-0 bg-black">
-                    <img
-                        src="https://images.unsplash.com/photo-1490750967868-88aa4486c946"
-                        alt="Blog Hoa"
-                        className="w-full h-full object-cover opacity-50"
-                    />
-                </div>
-
-                <div className="relative z-10 text-center text-white px-4">
-                    <p className="text-xs font-bold uppercase tracking-widest mb-3 text-amber-400">
-                        Blog Hoa
-                    </p>
-
-                    <h1
-                        className="text-4xl md:text-5xl font-bold"
-                        style={{ fontFamily: "serif" }}
-                    >
-                        Tin Tức & Cảm Hứng Hoa
-                    </h1>
-                </div>
+            {/* Header */}
+            <div className="pt-16 pb-12 text-center px-4">
+                <h1
+                    className="text-3xl md:text-4xl font-bold mb-4 text-stone-800 dark:text-stone-100 uppercase tracking-wide"
+                    style={{ fontFamily: "serif" }}
+                >
+                    TIN TỨC & KIẾN THỨC VỀ HOA
+                </h1>
+                <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
+                    Khám phá những câu chuyện thú vị về thế giới hoa
+                </p>
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 py-12">
+            <div className="max-w-7xl mx-auto px-4 pb-16">
                 {loading ? (
                     <div className="text-center py-20 dark:text-gray-400">Đang tải...</div>
                 ) : blogs.length === 0 ? (
@@ -68,32 +60,43 @@ export default function BlogPage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {blogs.map((post) => (
-                            <Link
-                                key={post.id}
-                                to={`/blog/${post.slug}`}
-                                className="group block"
-                            >
-                                <div className="rounded-2xl overflow-hidden aspect-video bg-gray-100 dark:bg-slate-800 mb-4 relative">
-                                    <img
-                                        src={resolveImage(post.coverImageUrl)}
-                                        alt={post.title}
-                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                            <Link key={post.id} to={`/blog/${post.slug}`} className="group flex flex-col h-full bg-white dark:bg-slate-800 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 border border-gray-100 dark:border-slate-700">
+                                {/* Image */}
+                                <div className="aspect-[4/3] overflow-hidden relative">
+                                    <img 
+                                        src={resolveImage(post.coverImageUrl)} 
+                                        alt={post.title} 
+                                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
                                     />
-
-                                    <div className="absolute top-3 left-3 px-3 py-1 rounded-full text-xs text-white bg-black/60">
-                                        {blogTag(post.type)}
+                                </div>
+                                
+                                {/* Content */}
+                                <div className="p-6 flex flex-col flex-grow">
+                                    {/* Category Tag */}
+                                    <div className="mb-3">
+                                        <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-500">
+                                            {blogTag(post.type)}
+                                        </span>
+                                    </div>
+                                    
+                                    {/* Title */}
+                                    <h3 className="text-xl font-bold mb-3 text-stone-800 dark:text-stone-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors line-clamp-2">
+                                        {post.title}
+                                    </h3>
+                                    
+                                    {/* Excerpt */}
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 line-clamp-3 flex-grow">
+                                        {post.excerpt}
+                                    </p>
+                                    
+                                    {/* Read More Link */}
+                                    <div className="mt-auto flex items-center text-sm font-semibold text-amber-600 dark:text-amber-500 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">
+                                        Xem thêm
+                                        <svg className="w-4 h-4 ml-1 transform transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                        </svg>
                                     </div>
                                 </div>
-
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                                    {formatBlogDate(post.createdAt)}
-                                </p>
-
-                                <h3 className="text-lg font-bold mb-2 text-gray-800 dark:text-gray-200 group-hover:text-amber-600 dark:group-hover:text-amber-400">
-                                    {post.title}
-                                </h3>
-
-                                <p className="text-sm text-gray-600 dark:text-gray-400">{post.excerpt}</p>
                             </Link>
                         ))}
                     </div>

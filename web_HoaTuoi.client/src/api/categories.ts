@@ -18,4 +18,7 @@ export const categoryApi = {
 
   getBySlug: (slug: string) =>
     apiClient.get<CategoryDto>(`/categories/${slug}`).then((r) => r.data),
+
+  getActiveFilters: () =>
+    apiClient.get<{ flowerTypes: string[], occasions: string[] }>('/categories/filters').then((r) => r.data),
 };

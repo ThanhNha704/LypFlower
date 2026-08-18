@@ -55,56 +55,102 @@ public class ReviewsController : ControllerBase
         var hasPurchased = await _db.Orders
             .AnyAsync(o => o.UserId == userId && o.Items.Any(i => i.ProductId == req.ProductId));
 
-        var review = new Review
-            {
-            ProductId = req.ProductId,
-            UserId = userId,
-            Rating = req.Rating,
-            Comment = req.Comment,
-            IsApproved = true, // Tạm thời tự động duyệt hoặc để false nếu cần admin duyệt
-            IsVerifiedPurchase = hasPurchased,
-            CreatedAt = DateTime.UtcNow
-        };
+        // Kiểm tra xem đã đánh giá chưa
+        var existingReview = await _db.Reviews
+            .Include(r => r.Images)
+            .FirstOrDefaultAsync(r => r.ProductId == req.ProductId && r.UserId == userId);
 
-        if (req.ImageBase64List != null && req.ImageBase64List.Any())
+        if (existingReview != null)
         {
-            var env = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
-            var uploadsFolder = Path.Combine(env.WebRootPath, "uploads", "reviews");
-            if (!Directory.Exists(uploadsFolder))
-            {
-                Directory.CreateDirectory(uploadsFolder);
-            }
+            existingReview.Rating = req.Rating;
+            existingReview.Comment = req.Comment;
+            existingReview.CreatedAt = DateTime.UtcNow; // Cập nhật thời gian sửa
 
-            foreach (var base64 in req.ImageBase64List)
+            _db.ReviewImages.RemoveRange(existingReview.Images);
+            existingReview.Images.Clear();
+
+            if (req.ImageBase64List != null && req.ImageBase64List.Any())
             {
-                try
+                var env = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
+                var uploadsFolder = Path.Combine(env.WebRootPath, "uploads", "reviews");
+                if (!Directory.Exists(uploadsFolder))
                 {
-                    // Remove data:image/...;base64, prefix if present
-                    var base64Data = base64;
-                    if (base64.Contains(","))
+                    Directory.CreateDirectory(uploadsFolder);
+                }
+
+                foreach (var base64 in req.ImageBase64List)
+                {
+                    if (base64.StartsWith("http") || base64.StartsWith("/uploads"))
                     {
-                        base64Data = base64.Split(',')[1];
+                        existingReview.Images.Add(new ReviewImage { Url = base64 });
+                        continue;
                     }
 
-                    var bytes = Convert.FromBase64String(base64Data);
-                    var fileName = $"{Guid.NewGuid()}.jpg";
-                    var filePath = Path.Combine(uploadsFolder, fileName);
-
-                    await System.IO.File.WriteAllBytesAsync(filePath, bytes);
-
-                    review.Images.Add(new ReviewImage { Url = $"/uploads/reviews/{fileName}" });
-                }
-                catch
-                {
-                    // Ignore invalid images or log error
+                    try
+                    {
+                        var base64Data = base64;
+                        if (base64.Contains(","))
+                        {
+                            base64Data = base64.Split(',')[1];
+                        }
+                        var bytes = Convert.FromBase64String(base64Data);
+                        var fileName = $"{Guid.NewGuid()}.jpg";
+                        var filePath = Path.Combine(uploadsFolder, fileName);
+                        await System.IO.File.WriteAllBytesAsync(filePath, bytes);
+                        existingReview.Images.Add(new ReviewImage { Url = $"/uploads/reviews/{fileName}" });
+                    }
+                    catch { }
                 }
             }
+
+            await _db.SaveChangesAsync();
+            return Ok(new { message = "Đã cập nhật đánh giá thành công!" });
         }
+        else
+        {
+            var review = new Review
+            {
+                ProductId = req.ProductId,
+                UserId = userId,
+                Rating = req.Rating,
+                Comment = req.Comment,
+                IsApproved = true,
+                IsVerifiedPurchase = hasPurchased,
+                CreatedAt = DateTime.UtcNow
+            };
 
-        _db.Reviews.Add(review);
-        await _db.SaveChangesAsync();
+            if (req.ImageBase64List != null && req.ImageBase64List.Any())
+            {
+                var env = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
+                var uploadsFolder = Path.Combine(env.WebRootPath, "uploads", "reviews");
+                if (!Directory.Exists(uploadsFolder))
+                {
+                    Directory.CreateDirectory(uploadsFolder);
+                }
 
-        return Ok(new { message = "Cảm ơn bạn đã đánh giá!" });
+                foreach (var base64 in req.ImageBase64List)
+                {
+                    try
+                    {
+                        var base64Data = base64;
+                        if (base64.Contains(","))
+                        {
+                            base64Data = base64.Split(',')[1];
+                        }
+                        var bytes = Convert.FromBase64String(base64Data);
+                        var fileName = $"{Guid.NewGuid()}.jpg";
+                        var filePath = Path.Combine(uploadsFolder, fileName);
+                        await System.IO.File.WriteAllBytesAsync(filePath, bytes);
+                        review.Images.Add(new ReviewImage { Url = $"/uploads/reviews/{fileName}" });
+                    }
+                    catch { }
+                }
+            }
+
+            _db.Reviews.Add(review);
+            await _db.SaveChangesAsync();
+            return Ok(new { message = "Cảm ơn bạn đã đánh giá!" });
+        }
     }
 
     // GET /api/reviews/shop-stats
@@ -220,6 +266,26 @@ public class ReviewsController : ControllerBase
         _db.Reviews.Remove(review);
         await _db.SaveChangesAsync();
         return NoContent();
+    }
+
+    // GET /api/reviews/can-review/{productId}
+    [HttpGet("can-review/{productId:int}")]
+    [Authorize]
+    public async Task<ActionResult> CanReview(int productId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        var hasPurchased = await _db.Orders
+            .AnyAsync(o => o.UserId == userId && o.Status == OrderStatus.Completed && o.Items.Any(i => i.ProductId == productId));
+            
+        var existingReview = await _db.Reviews
+            .Include(r => r.Images)
+            .Where(r => r.ProductId == productId && r.UserId == userId)
+            .Select(r => new { r.Id, r.Rating, r.Comment, Images = r.Images.Select(i => i.Url) })
+            .FirstOrDefaultAsync();
+
+        return Ok(new { canReview = hasPurchased, existingReview });
     }
 }
 

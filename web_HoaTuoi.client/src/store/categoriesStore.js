@@ -1,4 +1,4 @@
-﻿// src/store/categoriesStore.js
+// src/store/categoriesStore.js
 // Zustand store: fetch & cache categories từ API một lần duy nhất mỗi session
 import { create } from 'zustand';
 import { categoryApi } from '../api/categories';
@@ -10,6 +10,8 @@ import { categoryApi } from '../api/categories';
 export const useCategoriesStore = create((set, get) => ({
   /** @type {CategoryDto[]} */
   categories: [],
+  flowerTypes: [],
+  occasions: [],
   loading: false,
   error: null,
 
@@ -20,8 +22,16 @@ export const useCategoriesStore = create((set, get) => ({
 
     set({ loading: true, error: null });
     try {
-      const data = await categoryApi.getAll();
-      set({ categories: data, loading: false });
+      const [catsData, filtersData] = await Promise.all([
+        categoryApi.getAll(),
+        categoryApi.getActiveFilters()
+      ]);
+      set({ 
+        categories: catsData, 
+        flowerTypes: filtersData.flowerTypes,
+        occasions: filtersData.occasions,
+        loading: false 
+      });
     } catch {
       set({ error: 'Không thể tải danh mục.', loading: false });
     }

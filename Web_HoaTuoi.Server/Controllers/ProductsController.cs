@@ -54,7 +54,129 @@ public class ProductsController : ControllerBase
                 .FirstOrDefaultAsync(c => c.Slug == filter.CategorySlug);
 
             if (cat != null)
-                query = query.Where(p => p.CategoryId == cat.Id);
+            {
+                var catIds = new List<int> { cat.Id };
+                var childIds = await _db.Categories
+                    .Where(c => c.ParentCategoryId == cat.Id)
+                    .Select(c => c.Id)
+                    .ToListAsync();
+                catIds.AddRange(childIds);
+
+                var catSlug = filter.CategorySlug.ToLower();
+                if (catSlug.Contains("sinh-nhat"))
+                {
+                    query = query.Where(p => catIds.Contains(p.CategoryId) || p.Occasion.Contains("Sinh Nhật") || p.Name.Contains("Sinh Nhật"));
+                }
+                else if (catSlug.Contains("khai-truong"))
+                {
+                    query = query.Where(p => catIds.Contains(p.CategoryId) || p.Occasion.Contains("Khai Trương") || p.Occasion.Contains("Tân Gia") || p.Name.Contains("Khai Trương"));
+                }
+                else if (catSlug.Contains("cuoi"))
+                {
+                    query = query.Where(p => catIds.Contains(p.CategoryId) || p.Occasion.Contains("Cưới") || p.Occasion.Contains("Cô Dâu") || p.Name.Contains("Cưới") || p.Name.Contains("Cô Dâu"));
+                }
+                else if (catSlug.Contains("chia-buon") || catSlug.Contains("tang-le") || catSlug.Contains("vieng"))
+                {
+                    query = query.Where(p => 
+                        (catIds.Contains(p.CategoryId) || p.Occasion.Contains("Tang Lễ") || p.Occasion.Contains("Chia Buồn") || p.Occasion.Contains("Kính Hiếu"))
+                        && !p.Name.Contains("Vàng") 
+                        && !p.Color.Contains("Vàng"));
+                }
+                else if (catSlug == "hoa-theo-loai")
+                {
+                    query = query.Where(p => catIds.Contains(p.CategoryId) || (p.Category != null && p.Category.ParentCategoryId == cat.Id));
+                }
+                else if (catSlug.Contains("dip-le") || catSlug.Contains("valentine") || catSlug.Contains("phu-nu"))
+                {
+                    query = query.Where(p => catIds.Contains(p.CategoryId) || p.Occasion.Contains("Valentine") || p.Occasion.Contains("8/3") || p.Occasion.Contains("20/10") || p.Occasion.Contains("Tết"));
+                }
+                else if (catSlug.Contains("sap") || catSlug.Contains("kho"))
+                {
+                    query = query.Where(p => catIds.Contains(p.CategoryId) || p.FlowerType.Contains("Sáp") || p.FlowerType.Contains("Khô") || p.Name.Contains("Sáp") || p.Name.Contains("Khô"));
+                }
+                else if (catSlug.Contains("cay-canh") || catSlug.Contains("chau-hoa"))
+                {
+                    query = query.Where(p => catIds.Contains(p.CategoryId) || p.FlowerType.Contains("Cây") || p.FlowerType.Contains("Sen Đá") || p.Name.Contains("Cây") || p.Name.Contains("Sen Đá"));
+                }
+                else if (catSlug.Contains("qua-tang"))
+                {
+                    query = query.Where(p => catIds.Contains(p.CategoryId) || p.FlowerType.Contains("Bánh") || p.FlowerType.Contains("Socola") || p.FlowerType.Contains("Gấu") || p.FlowerType.Contains("Phụ Kiện") || p.FlowerType.Contains("Thiệp"));
+                }
+                else if (catSlug.Contains("tet"))
+                {
+                    query = query.Where(p => catIds.Contains(p.CategoryId) || p.Occasion.Contains("Tết") || p.Name.Contains("Tết"));
+                }
+                else
+                {
+                    query = query.Where(p => catIds.Contains(p.CategoryId));
+                }
+            }
+        }
+        else if (filter.CategoryId.HasValue)
+        {
+            var childIds = await _db.Categories
+                .Where(c => c.ParentCategoryId == filter.CategoryId.Value)
+                .Select(c => c.Id)
+                .ToListAsync();
+            childIds.Add(filter.CategoryId.Value);
+            query = query.Where(p => childIds.Contains(p.CategoryId));
+        }
+
+        if (!string.IsNullOrEmpty(filter.FlowerType))
+        {
+            var ft = filter.FlowerType.Trim();
+            if (ft.Contains("Hồng", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.FlowerType.Contains("Hồng") || p.Name.Contains("Hồng") || (p.Category != null && p.Category.Name.Contains("Hồng")));
+            }
+            else if (ft.Contains("Lan", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.FlowerType.Contains("Lan") || p.Name.Contains("Lan") || (p.Category != null && p.Category.Name.Contains("Lan")));
+            }
+            else if (ft.Contains("Tulip", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.FlowerType.Contains("Tulip") || p.Name.Contains("Tulip") || (p.Category != null && p.Category.Name.Contains("Tulip")));
+            }
+            else if (ft.Contains("Hướng Dương", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.FlowerType.Contains("Hướng Dương") || p.Name.Contains("Hướng Dương") || (p.Category != null && p.Category.Name.Contains("Hướng Dương")));
+            }
+            else if (ft.Contains("Cẩm Tú Cầu", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.FlowerType.Contains("Cẩm Tú Cầu") || p.Name.Contains("Cẩm Tú Cầu") || (p.Category != null && p.Category.Name.Contains("Cẩm Tú Cầu")));
+            }
+            else if (ft.Contains("Baby", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.FlowerType.Contains("Baby") || p.Name.Contains("Baby") || (p.Category != null && p.Category.Name.Contains("Baby")));
+            }
+            else if (ft.Contains("Cúc", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.FlowerType.Contains("Cúc") || p.Name.Contains("Cúc") || (p.Category != null && p.Category.Name.Contains("Cúc")));
+            }
+            else if (ft.Contains("Sen", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.FlowerType.Contains("Sen") || p.Name.Contains("Sen") || (p.Category != null && p.Category.Name.Contains("Sen")));
+            }
+            else if (ft.Contains("Cát Tường", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.FlowerType.Contains("Cát Tường") || p.Name.Contains("Cát Tường"));
+            }
+            else if (ft.Contains("Cẩm Chướng", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.FlowerType.Contains("Cẩm Chướng") || p.Name.Contains("Cẩm Chướng"));
+            }
+            else if (ft.Contains("Thạch Thảo", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.FlowerType.Contains("Thạch Thảo") || p.Name.Contains("Thạch Thảo"));
+            }
+            else if (ft.Contains("Sáp", StringComparison.OrdinalIgnoreCase) || ft.Contains("Khô", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.FlowerType.Contains("Sáp") || p.FlowerType.Contains("Khô") || p.Name.Contains("Sáp") || p.Name.Contains("Khô"));
+            }
+            else
+            {
+                query = query.Where(p => p.FlowerType.Contains(ft) || p.Name.Contains(ft));
+            }
         }
 
         if (filter.MinPrice.HasValue)
@@ -72,7 +194,45 @@ public class ProductsController : ControllerBase
             query = query.Where(p => p.Color.Contains(filter.Color));
 
         if (!string.IsNullOrEmpty(filter.Occasion))
-            query = query.Where(p => p.Occasion.Contains(filter.Occasion));
+        {
+            var occ = filter.Occasion.Trim();
+            if (occ.Contains("Sinh nhật", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.Occasion.Contains("Sinh Nhật") || (p.Category != null && p.Category.Name.Contains("Sinh Nhật")) || p.Name.Contains("Sinh Nhật"));
+            }
+            else if (occ.Contains("Khai trương", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.Occasion.Contains("Khai Trương") || p.Occasion.Contains("Tân Gia") || p.Occasion.Contains("Văn Phòng") || (p.Category != null && p.Category.Name.Contains("Khai Trương")));
+            }
+            else if (occ.Contains("Tình yêu", StringComparison.OrdinalIgnoreCase) || occ.Contains("Valentine", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.Occasion.Contains("Valentine") || p.Occasion.Contains("Tỏ Tình") || p.Occasion.Contains("Hẹn Hò") || p.Occasion.Contains("Kỷ Niệm") || p.Occasion.Contains("Cầu Hôn") || p.Occasion.Contains("Tình Yêu"));
+            }
+            else if (occ.Contains("Chúc mừng", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.Occasion.Contains("Chúc Mừng") || p.Occasion.Contains("Tốt Nghiệp") || p.Occasion.Contains("Tri Ân") || p.Occasion.Contains("Sự Kiện"));
+            }
+            else if (occ.Contains("Cưới", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.Occasion.Contains("Cưới") || p.Occasion.Contains("Cô Dâu") || p.Name.Contains("Cưới") || (p.Category != null && p.Category.Name.Contains("Cưới")));
+            }
+            else if (occ.Contains("Chia buồn", StringComparison.OrdinalIgnoreCase) || occ.Contains("Tang lễ", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.Occasion.Contains("Tang Lễ") || p.Occasion.Contains("Chia Buồn") || p.Occasion.Contains("Kính Hiếu") || (p.Category != null && p.Category.Name.Contains("Tang Lễ")));
+            }
+            else if (occ.Contains("Tết", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.Occasion.Contains("Tết") || p.Name.Contains("Tết") || (p.Category != null && p.Category.Name.Contains("Tết")));
+            }
+            else if (occ.Contains("8/3", StringComparison.OrdinalIgnoreCase) || occ.Contains("Phụ nữ", StringComparison.OrdinalIgnoreCase) || occ.Contains("Mẹ", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.Occasion.Contains("8/3") || p.Occasion.Contains("20/10") || p.Occasion.Contains("Mẹ") || p.Occasion.Contains("Phụ Nữ"));
+            }
+            else
+            {
+                query = query.Where(p => p.Occasion.Contains(occ));
+            }
+        }
 
         query = filter.SortBy switch
         {

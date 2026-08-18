@@ -19,4 +19,8 @@ export const reviewApi = {
   /** Gửi đánh giá mới */
   createReview: (data: any) =>
     apiClient.post('/reviews', data).then((r) => r.data),
+
+  /** Kiểm tra xem user có được đánh giá không (đã mua hàng) */
+  checkCanReview: (productId: number) =>
+    apiClient.get<{ canReview: boolean, existingReview: any }>(`/reviews/can-review/${productId}`).then((r) => r.data),
 };

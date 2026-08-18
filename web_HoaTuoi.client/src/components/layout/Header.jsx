@@ -22,7 +22,6 @@ import toast from "react-hot-toast";
 
 const navLinks = [
     { to: "/", label: "Trang chủ" },
-    { to: "/hoa", label: "Sản phẩm", hasDropdown: false },
     { to: "/hoa", label: "Bộ sưu tập", hasDropdown: true },
     { to: "/blog", label: "Tin tức" },
     { to: "/lien-he", label: "Liên hệ" }
@@ -46,7 +45,7 @@ export default function Header() {
     const fetchWishlistIfNeeded = useWishlistStore(s => s.fetchIfNeeded);
     const resetWishlist = useWishlistStore(s => s.reset);
 
-    const { categories, fetchIfEmpty } = useCategoriesStore();
+    const { categories, flowerTypes, occasions, fetchIfEmpty } = useCategoriesStore();
 
     useEffect(() => {
         fetchIfEmpty();
@@ -125,19 +124,41 @@ export default function Header() {
                                     {l.hasDropdown && <ChevronDown size={14} />}
                                 </NavLink>
 
-                                {l.hasDropdown && categories.length > 0 && (
-                                    <div className="absolute left-0 top-full w-[480px] bg-white dark:bg-[#1a1a1a] rounded-2xl shadow-xl border dark:border-slate-800 p-4 opacity-0 invisible group-hover:visible group-hover:opacity-100 transition grid grid-cols-2 gap-2">
+                                {l.hasDropdown && (
+                                    <div className="absolute left-[0px] top-full w-[500px] bg-white dark:bg-[#1a1a1a] rounded-2xl shadow-xl border dark:border-slate-800 p-6 opacity-0 invisible group-hover:visible group-hover:opacity-100 transition grid grid-cols-2 gap-6">
 
-                                        {categories.map(cat => (
-                                            <Link
-                                                key={cat.slug}
-                                                to={`/hoa?category=${cat.slug}`}
-                                                className="flex items-center gap-2 px-3 py-2.5 text-xs text-gray-600 dark:text-gray-300 rounded-xl hover:bg-pink-50 dark:hover:bg-pink-950/20 hover:text-pink-600 dark:hover:text-pink-400 transition-colors"
-                                            >
-                                                <span>🌸</span>
-                                                <span className="font-semibold">{cat.name}</span>
-                                            </Link>
-                                        ))}
+                                        <div>
+                                            <h4 className="font-bold text-gray-900 dark:text-white mb-3 border-b border-gray-100 dark:border-slate-800 pb-2">Danh mục hoa</h4>
+                                            <div className="flex flex-col space-y-1">
+                                                {categories.filter(c => c.productCount > 0).slice(0, 8).map(cat => (
+                                                    <Link
+                                                        key={cat.slug}
+                                                        to={`/hoa?category=${cat.slug}`}
+                                                        className="px-2 py-1.5 text-[13px] text-gray-600 dark:text-gray-300 rounded hover:bg-pink-50 dark:hover:bg-pink-950/20 hover:text-pink-600 dark:hover:text-pink-400 transition-colors"
+                                                    >
+                                                        {cat.name}
+                                                    </Link>
+                                                ))}
+                                                <Link to="/hoa" className="px-2 py-1.5 text-[13px] text-pink-600 font-semibold mt-1">Xem tất cả &rarr;</Link>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h4 className="font-bold text-gray-900 dark:text-white mb-3 border-b border-gray-100 dark:border-slate-800 pb-2">Loài hoa</h4>
+                                            <div className="flex flex-col space-y-1">
+                                                {flowerTypes.slice(0, 8).map(f => (
+                                                    <Link
+                                                        key={f}
+                                                        to={`/hoa?flowerType=${encodeURIComponent(f)}`}
+                                                        className="px-2 py-1.5 text-[13px] text-gray-600 dark:text-gray-300 rounded hover:bg-pink-50 dark:hover:bg-pink-950/20 hover:text-pink-600 dark:hover:text-pink-400 transition-colors"
+                                                    >
+                                                        {f}
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        </div>
+
+
 
                                     </div>
                                 )}

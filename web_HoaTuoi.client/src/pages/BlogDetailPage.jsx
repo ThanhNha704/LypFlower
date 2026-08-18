@@ -5,7 +5,10 @@ import { ChevronLeft } from 'lucide-react';
 import { resolveImage } from '../utils/imageResolver';
 
 function blogTag(type) {
-    return type === 'Lookbook' ? 'Bộ sưu tập' : 'Cảm hứng hoa';
+    if (type === 0) return "Kiến thức về hoa";
+    if (type === 1) return "Hướng dẫn chọn hoa";
+    if (type === 2) return "Chăm sóc hoa";
+    return "Tin tức";
 }
 
 export default function BlogDetailPage() {
@@ -64,10 +67,12 @@ export default function BlogDetailPage() {
                 {/* Content */}
                 <div
                     className="prose prose-stone max-w-none 
-                    prose-p:text-stone-600 prose-p:leading-[1.8] prose-p:text-[15px]
-                    prose-headings:text-stone-800 prose-headings:font-serif prose-h3:text-lg prose-h3:mt-10
-                    prose-strong:text-stone-700
-                    prose-li:text-stone-600 prose-li:text-[15px]"
+                    prose-p:text-stone-700 prose-p:leading-[1.9] prose-p:text-[16px] prose-p:mb-6
+                    prose-headings:text-stone-900 prose-headings:font-serif prose-headings:font-bold
+                    prose-h3:text-xl prose-h3:mt-10 prose-h3:mb-4 prose-h3:text-pink-900 prose-h3:border-l-4 prose-h3:border-pink-400 prose-h3:pl-4
+                    prose-strong:text-stone-900 prose-strong:font-semibold
+                    prose-img:rounded-2xl prose-img:shadow-md prose-img:my-8 prose-img:w-full prose-img:max-h-[450px] prose-img:object-cover prose-img:border prose-img:border-stone-100
+                    prose-li:text-stone-700 prose-li:text-[16px] prose-li:leading-[1.8]"
                     dangerouslySetInnerHTML={{ __html: blog.content }}
                 />
             </div>

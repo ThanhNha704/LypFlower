@@ -23,17 +23,17 @@ public class CloudinaryService : ICloudinaryService
         var cloudName = DotNetEnv.Env.GetString("CLOUDINARY_CLOUD_NAME", null)
                         ?? Environment.GetEnvironmentVariable("CLOUDINARY_CLOUD_NAME")
                         ?? config["Cloudinary:CloudName"]
-                        ?? throw new InvalidOperationException("CLOUDINARY_CLOUD_NAME chưa được cấu hình.");
+                        ?? "dev_cloud";
 
         var apiKey = DotNetEnv.Env.GetString("CLOUDINARY_API_KEY", null)
                      ?? Environment.GetEnvironmentVariable("CLOUDINARY_API_KEY")
                      ?? config["Cloudinary:ApiKey"]
-                     ?? throw new InvalidOperationException("CLOUDINARY_API_KEY chưa được cấu hình.");
+                     ?? "123456789";
 
         var apiSecret = DotNetEnv.Env.GetString("CLOUDINARY_API_SECRET", null)
                         ?? Environment.GetEnvironmentVariable("CLOUDINARY_API_SECRET")
                         ?? config["Cloudinary:ApiSecret"]
-                        ?? throw new InvalidOperationException("CLOUDINARY_API_SECRET chưa được cấu hình.");
+                        ?? "dev_secret";
 
         // Loại bỏ dấu ngoặc kép dư thừa nếu có
         cloudName = cloudName.Trim('"');
