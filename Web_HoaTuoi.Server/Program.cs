@@ -202,8 +202,8 @@ using (var scope = app.Services.CreateScope())
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-    // db.Database.Migrate();
-    // await DbSeeder.SeedAsync(db, userManager, roleManager);
+    db.Database.Migrate();
+    await DbSeeder.SeedAsync(db, userManager, roleManager);
 
     var inventory = scope.ServiceProvider.GetRequiredService<IInventoryService>();
     await inventory.SyncFromDatabaseAsync(db);

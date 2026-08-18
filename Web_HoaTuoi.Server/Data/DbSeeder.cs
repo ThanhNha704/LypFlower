@@ -226,6 +226,7 @@ public static class DbSeeder
                     
                     // Bo qua lenh USE de chay truc tiep tren CSDL hien tai cua Entity Framework
                     if (cmdText.TrimStart().StartsWith("USE ", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (cmdText.TrimStart().StartsWith("INSERT INTO [AspNetUserRoles]", StringComparison.OrdinalIgnoreCase)) continue;
 
                     await db.Database.ExecuteSqlRawAsync(cmdText);
                 }
