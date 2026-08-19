@@ -64,23 +64,19 @@ export default function HomePage() {
 
         <div className="space-y-3 pb-10">
 
-            {/* ================= HERO ================= */}
+            <section className="bg-pink-50 dark:bg-pink-950/20 py-6 md:py-10 transition-colors">
 
-            <section className="bg-pink-50 dark:bg-pink-950/20 py-10 transition-colors">
-
-                <div className="container mx-auto grid md:grid-cols-2 gap-10 items-center">
+                <div className="container mx-auto px-4 grid md:grid-cols-2 gap-6 md:gap-10 items-center">
 
                     {/* TEXT */}
                     <div>
 
-                        <h1 className="text-5xl font-bold text-pink-600 dark:text-pink-400 leading-tight font-playfair">
-                            Hoa tươi cho
-                            mọi khoảnh khắc yêu thương 🌸
+                        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-pink-600 dark:text-pink-400 leading-tight font-playfair">
+                            Hoa tươi cho mọi khoảnh khắc yêu thương 🌸
                         </h1>
 
-                        <p className="mt-6 mb-10 text-gray-600 dark:text-gray-300 text-lg">
-                            Những bó hoa tươi được tuyển chọn và thiết kế tinh tế để,
-                            bạn gửi gắm yêu thương trong mọi dịp đặc biệt
+                        <p className="mt-4 mb-6 md:mb-10 text-gray-600 dark:text-gray-300 text-sm md:text-lg">
+                            Những bó hoa tươi được tuyển chọn và thiết kế tinh tế để bạn gửi gắm yêu thương trong mọi dịp đặc biệt
                         </p>
 
                     </div>
@@ -89,7 +85,7 @@ export default function HomePage() {
                     <img
                         src="/banner.png"
                         alt="hoa"
-                        className="rounded-3xl shadow-lg"
+                        className="rounded-3xl shadow-lg w-full"
                         onError={(e) => {
                             e.currentTarget.src =
                                 "https://placehold.co/600x400/f8c8dc/333?text=Banner";
@@ -158,7 +154,7 @@ export default function HomePage() {
 
                 </h2>
 
-                <div className="grid md:grid-cols-4 gap-8">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 px-4 md:px-0">
 
                     {products.slice(0, 12).map(p => (
 

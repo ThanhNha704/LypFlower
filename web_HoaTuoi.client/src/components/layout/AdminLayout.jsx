@@ -1,4 +1,4 @@
-import { NavLink, Outlet, Navigate, Link } from "react-router-dom";
+import { NavLink, Outlet, Navigate, Link, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "../../store/authStore";
 import {
@@ -18,7 +18,8 @@ import {
     BarChart3,
     Home,
     Bell,
-    Bot
+    Bot,
+    X
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { HubConnectionBuilder } from '@microsoft/signalr';
@@ -41,6 +42,12 @@ const adminNav = [
 export default function AdminLayout() {
     const { user, logout } = useAuthStore();
     const [collapsed, setCollapsed] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
+    const location = useLocation();
+
+    useEffect(() => {
+        setMobileOpen(false);
+    }, [location]);
     
     // Notifications state
     const [notifications, setNotifications] = useState([]);
@@ -97,10 +104,19 @@ export default function AdminLayout() {
         <div className="flex min-h-screen bg-gray-50">
             <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
 
+            {/* Backdrop overlay for mobile */}
+            {mobileOpen && (
+                <div 
+                    className="fixed inset-0 bg-black/40 z-40 md:hidden" 
+                    onClick={() => setMobileOpen(false)} 
+                />
+            )}
+
             {/* Sidebar */}
             <aside
-                className={`${collapsed ? "w-16" : "w-60"
-                    } flex-shrink-0 bg-white border-r border-gray-100 flex flex-col transition-all duration-200 h-screen sticky top-0`}
+                className={`fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-100 flex flex-col transition-transform duration-300 h-screen md:sticky md:top-0 ${
+                    collapsed ? "md:w-16" : "md:w-60"
+                } w-60 ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
             >
                 {/* Logo */}
                 <div className="h-16 flex items-center px-4 border-b border-gray-100 gap-3">
@@ -110,9 +126,16 @@ export default function AdminLayout() {
 
                     <button
                         onClick={() => setCollapsed(!collapsed)}
-                        className="ml-auto p-1 rounded hover:bg-gray-100"
+                        className="ml-auto p-1 rounded hover:bg-gray-100 hidden md:block"
                     >
                         {collapsed ? <ChevronRight size={18} /> : <Menu size={18} />}
+                    </button>
+
+                    <button
+                        onClick={() => setMobileOpen(false)}
+                        className="ml-auto p-1 rounded hover:bg-gray-100 md:hidden text-gray-500"
+                    >
+                        <X size={18} />
                     </button>
                 </div>
 
@@ -155,9 +178,18 @@ export default function AdminLayout() {
             {/* Main */}
             <div className="flex-1 flex flex-col min-w-0">
                 <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 sticky top-0 z-20">
-                    <h1 className="text-base font-semibold text-gray-800">
-                        Quản trị Shop Hoa
-                    </h1>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setMobileOpen(true)}
+                            className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                            title="Mở menu"
+                        >
+                            <Menu size={20} />
+                        </button>
+                        <h1 className="text-base font-semibold text-gray-800">
+                            Quản trị Shop Hoa
+                        </h1>
+                    </div>
 
                     <div className="flex items-center gap-4">
                         {/* Notification Bell */}

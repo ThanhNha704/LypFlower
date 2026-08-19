@@ -337,6 +337,57 @@ export default function Header() {
                                 </div>
                             ))}
                         </nav>
+                        
+                        {/* User Section for Mobile */}
+                        {user ? (
+                            <div className="border-t border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/30 p-4 space-y-3">
+                                <div className="flex items-center gap-3 px-2">
+                                    <div className="w-9 h-9 rounded-full bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center text-pink-600 dark:text-pink-400 font-bold border border-pink-200">
+                                        {user.fullName?.[0] || 'U'}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{user.fullName}</p>
+                                        <p className="text-[10px] text-gray-500">{user.email}</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-1 text-sm font-semibold pl-2">
+                                    {user.role === 'Admin' && (
+                                        <Link to="/admin" onClick={() => setMenuOpen(false)} className="block py-2 text-blue-600">Bảng điều khiển Admin</Link>
+                                    )}
+                                    {user.role === 'Staff' && (
+                                        <Link to="/nhan-vien" onClick={() => setMenuOpen(false)} className="block py-2 text-blue-600">Bảng điều khiển Nhân viên</Link>
+                                    )}
+                                    {user.role !== 'Admin' && user.role !== 'Staff' && (
+                                        <>
+                                            <Link to="/tai-khoan" onClick={() => setMenuOpen(false)} className="block py-2 text-gray-600 dark:text-gray-300">Tài khoản của tôi</Link>
+                                            <Link to="/don-hang" onClick={() => setMenuOpen(false)} className="block py-2 text-gray-600 dark:text-gray-300">Đơn hàng của tôi</Link>
+                                        </>
+                                    )}
+                                    <button
+                                        onClick={() => {
+                                            logout();
+                                            setMenuOpen(false);
+                                            toast.success("Đã đăng xuất thành công");
+                                            navigate('/');
+                                        }}
+                                        className="w-full text-left py-2 text-red-500 flex items-center gap-2 mt-2 border-t border-gray-100 dark:border-slate-800/60 pt-2 font-bold cursor-pointer"
+                                    >
+                                        <LogOut size={16} /> Đăng xuất
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="p-4 border-t border-gray-100 dark:border-slate-800">
+                                <Link
+                                    to="/dang-nhap"
+                                    onClick={() => setMenuOpen(false)}
+                                    className="block text-center text-sm bg-pink-500 hover:bg-pink-600 text-white font-bold py-2.5 rounded-xl transition"
+                                >
+                                    Đăng nhập
+                                </Link>
+                            </div>
+                        )}
                     </div>
                 )}
 
