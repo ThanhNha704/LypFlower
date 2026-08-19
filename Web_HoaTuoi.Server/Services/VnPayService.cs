@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -26,7 +26,7 @@ public class VnPayService : IVnPayService
             ["vnp_Version"]    = version,
             ["vnp_Command"]    = command,
             ["vnp_TmnCode"]    = tmnCode,
-            ["vnp_Amount"]     = ((long)(amount * 100)).ToString(), // VNPay tÃ­nh theo Ä‘Æ¡n vá»‹ nhá» nháº¥t
+            ["vnp_Amount"]     = ((long)(amount * 100)).ToString(), // VNPay tính theo đơn vị tiền tệ nhỏ nhất (Nhân với 100 theo đặc tả)
             ["vnp_CreateDate"] = DateTime.UtcNow.AddHours(7).ToString("yyyyMMddHHmmss"),
             ["vnp_CurrCode"]   = currCode,
             ["vnp_IpAddr"]     = ipAddress,
@@ -37,7 +37,7 @@ public class VnPayService : IVnPayService
             ["vnp_TxnRef"]     = orderCode,
         };
 
-        // Táº¡o chuá»—i hash data
+        // Tạo chuỗi truy vấn đã được sắp xếp để tiến hành tạo chữ ký điện tử
         var signData = string.Join("&",
             vnpParams.Select(kv => $"{WebUtility.UrlEncode(kv.Key)}={WebUtility.UrlEncode(kv.Value)}"));
 
@@ -51,11 +51,11 @@ public class VnPayService : IVnPayService
     {
         var hashSecret = _config["VnPay:HashSecret"]!;
 
-        // Láº¥y SecureHash tá»« query
+        // Lấy mã băm bảo mật SecureHash từ VnPay gửi về
         var vnpSecureHash = query["vnp_SecureHash"].ToString();
         if (string.IsNullOrEmpty(vnpSecureHash)) return false;
 
-        // Build láº¡i chuá»—i hash (loáº¡i bá» vnp_SecureHash vÃ  vnp_SecureHashType)
+        // Tạo lại chuỗi truy vấn để đối chiếu chữ ký (loại bỏ tham số vnp_SecureHash và vnp_SecureHashType)
         var sortedParams = new SortedDictionary<string, string>();
         foreach (var key in query.Keys)
         {

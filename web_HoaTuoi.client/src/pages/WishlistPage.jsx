@@ -139,69 +139,70 @@ export default function WishlistPage() {
                             }}>
                             <div className="bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg"
                                 style={{ border: '1px solid var(--craft-tan)' }}>
-                                <div className="flex items-center gap-4 p-4">
-                                    {/* Ảnh sản phẩm */}
-                                    <Link to={`/hoa/${item.slug}`}
-                                        className="flex-shrink-0 w-24 h-24 md:w-28 md:h-28 rounded-xl overflow-hidden"
-                                        style={{ backgroundColor: 'var(--craft-beige)' }}>
-                                        <img src={imgSrc} alt={item.productName}
-                                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                                            onError={e => { e.currentTarget.src = FALLBACK_IMG; }}
-                                            loading="lazy" />
-                                    </Link>
-
-                                    {/* Thông tin sản phẩm */}
-                                    <div className="flex-1 min-w-0">
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4">
+                                    {/* Ảnh và thông tin sản phẩm */}
+                                    <div className="flex items-center gap-4 w-full sm:w-auto flex-1">
                                         <Link to={`/hoa/${item.slug}`}
-                                            className="text-sm md:text-base font-semibold leading-snug hover:underline line-clamp-2"
-                                            style={{ color: 'var(--craft-brown)' }}>
-                                            {item.productName}
+                                            className="flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-xl overflow-hidden"
+                                            style={{ backgroundColor: 'var(--craft-beige)' }}>
+                                            <img src={imgSrc} alt={item.productName}
+                                                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                                                onError={e => { e.currentTarget.src = FALLBACK_IMG; }}
+                                                loading="lazy" />
                                         </Link>
 
-                                        {item.categoryName && (
-                                            <span className="inline-block mt-1.5 text-[10px] font-medium px-2.5 py-0.5 rounded-full"
-                                                style={{ backgroundColor: 'var(--craft-beige)', color: 'var(--craft-amber)' }}>
-                                                {item.categoryName}
-                                            </span>
-                                        )}
+                                        <div className="flex-1 min-w-0 text-left">
+                                            <Link to={`/hoa/${item.slug}`}
+                                                className="text-sm md:text-base font-semibold leading-snug hover:underline line-clamp-2"
+                                                style={{ color: 'var(--craft-brown)' }}>
+                                                {item.productName}
+                                            </Link>
 
-                                        {/* Giá */}
-                                        <div className="flex items-baseline gap-2 mt-2">
-                                            {item.isOnSale && item.salePrice != null ? (
-                                                <>
-                                                    <span className="font-bold text-base" style={{ color: '#d4460c' }}>
-                                                        {formatVnd(item.salePrice)}
-                                                    </span>
-                                                    <span className="text-xs line-through" style={{ color: 'var(--craft-muted)' }}>
-                                                        {formatVnd(item.price)}
-                                                    </span>
-                                                    <span className="bg-red-100 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                                                        -{Math.round((1 - item.salePrice / item.price) * 100)}%
-                                                    </span>
-                                                </>
-                                            ) : (
-                                                <span className="font-bold text-base" style={{ color: 'var(--craft-brown)' }}>
-                                                    {formatVnd(item.price)}
+                                            {item.categoryName && (
+                                                <span className="inline-block mt-1.5 text-[10px] font-medium px-2.5 py-0.5 rounded-full"
+                                                    style={{ backgroundColor: 'var(--craft-beige)', color: 'var(--craft-amber)' }}>
+                                                    {item.categoryName}
                                                 </span>
                                             )}
-                                        </div>
 
-                                        {/* Stock status */}
-                                        <p className={`text-[11px] mt-1 font-medium ${item.stock > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                                            {item.stock > 0 ? `✓ Còn hàng (${item.stock})` : '✗ Hết hàng'}
-                                        </p>
+                                            {/* Giá */}
+                                            <div className="flex items-baseline gap-2 mt-2">
+                                                {item.isOnSale && item.salePrice != null ? (
+                                                    <>
+                                                        <span className="font-bold text-base text-red-655" style={{ color: '#d4460c' }}>
+                                                            {formatVnd(item.salePrice)}
+                                                        </span>
+                                                        <span className="text-xs line-through" style={{ color: 'var(--craft-muted)' }}>
+                                                            {formatVnd(item.price)}
+                                                        </span>
+                                                        <span className="bg-red-100 text-red-650 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                                                            -{Math.round((1 - item.salePrice / item.price) * 100)}%
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <span className="font-bold text-base" style={{ color: 'var(--craft-brown)' }}>
+                                                        {formatVnd(item.price)}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Stock status */}
+                                            <p className={`text-[11px] mt-1 font-medium ${item.stock > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                                {item.stock > 0 ? `✓ Còn hàng (${item.stock})` : '✗ Hết hàng'}
+                                            </p>
+                                        </div>
                                     </div>
 
-                                    {/* Actions */}
-                                    <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                                    {/* Nút hành động */}
+                                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3 w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0">
                                         <button onClick={() => handleAddToCart(item)}
                                             disabled={item.stock === 0}
-                                            className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5">
+                                            className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 flex-1 sm:flex-initial justify-center">
                                             <ShoppingCart size={14} /> Thêm giỏ
                                         </button>
                                         <button onClick={() => handleRemove(item.productId)}
                                             disabled={isRemoving}
-                                            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full transition-colors hover:bg-red-50 text-red-400 hover:text-red-600">
+                                            className="flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full transition-colors hover:bg-red-50 text-red-400 hover:text-red-600 flex-1 sm:flex-initial">
                                             <Trash2 size={13} /> Xóa
                                         </button>
                                     </div>

@@ -58,7 +58,7 @@ export default function SemanticSearch() {
 
   return (
     <div className="max-w-7xl mx-auto px-5 py-10 font-sans dark:text-gray-200">
-      {/* KHU VỰC TÌM KIẾM */}
+      {/* Khung tìm kiếm ngữ nghĩa Lyp AI */}
       <div className="text-center mb-8 max-w-2xl mx-auto mt-4">
         <div className="w-20 h-20 bg-gradient-to-tr from-pink-300 to-pink-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-4 shadow-md border-4 border-white animate-bounce">
           🌸
@@ -72,9 +72,9 @@ export default function SemanticSearch() {
 
         <form
           onSubmit={handleSearch}
-          className="flex justify-center gap-2.5 max-w-2xl mx-auto"
+          className="flex flex-col sm:flex-row justify-center gap-2.5 max-w-2xl mx-auto w-full px-2"
         >
-          <div className="relative flex-1">
+          <div className="relative flex-1 w-full">
             <input
               type="text"
               value={query}
@@ -96,7 +96,7 @@ export default function SemanticSearch() {
           <button
             type="submit"
             disabled={loading}
-            className={`bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold px-8 py-4 rounded-full text-base cursor-pointer transition-all duration-300 shrink-0 shadow-md flex items-center gap-2 ${
+            className={`bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold px-8 py-4 rounded-full text-base cursor-pointer transition-all duration-300 w-full sm:w-auto justify-center shrink-0 shadow-md flex items-center gap-2 ${
               loading ? "opacity-70 cursor-not-allowed" : "hover:shadow-lg hover:-translate-y-0.5"
             }`}
           >
@@ -117,7 +117,7 @@ export default function SemanticSearch() {
         )}
       </div>
 
-      {/* CÂU TƯ VẤN SÂU SẮC TỪ AI */}
+      {/* Hiển thị câu trả lời và tư vấn thông minh từ AI (Gemini) */}
       {!loading && aiResponse && (
         <div className="bg-pink-50 dark:bg-pink-900/20 border-2 border-pink-100 dark:border-pink-800/50 rounded-3xl p-5 md:p-6 mb-10 flex items-start gap-4 shadow-sm relative">
           <div className="w-12 h-12 bg-white dark:bg-[#1a1a1a] rounded-full flex items-center justify-center text-2xl shadow-sm border border-pink-100 dark:border-pink-800 shrink-0">
@@ -134,7 +134,7 @@ export default function SemanticSearch() {
         </div>
       )}
 
-      {/* SKELETON LOADING KHI ĐANG TÌM KIẾM */}
+      {/* Trạng thái tải dữ liệu giả lập (Skeleton Loading) khi đang tìm kiếm */}
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map((i) => (
@@ -151,7 +151,7 @@ export default function SemanticSearch() {
         </div>
       )}
 
-      {/* THÔNG BÁO KHI KHÔNG CÓ KẾT QUẢ */}
+      {/* Hiển thị thông báo khi không tìm thấy kết quả phù hợp */}
       {!loading && hasSearched && results.length === 0 && !errorMessage && (
         <div className="text-center text-gray-500 dark:text-gray-400 my-10 py-8 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-slate-800 max-w-lg mx-auto">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">
@@ -167,7 +167,7 @@ export default function SemanticSearch() {
         </div>
       )}
 
-      {/* DANH SÁCH KẾT QUẢ */}
+      {/* Danh sách kết quả sản phẩm hoa tươi tương đồng tìm được */}
       {!loading && results.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {results.map((product) => {

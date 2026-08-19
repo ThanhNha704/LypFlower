@@ -12,7 +12,7 @@ using Web_HoaTuoi.Server.Models;
 using Web_HoaTuoi.Server.Services;
 using System.Text.Json.Serialization;
 
-// Nạp ưu tiên file .env.local
+// Nạp cấu hình biến môi trường từ các tệp tin .env.local hoặc .env mặc định
 try
 {
     DotNetEnv.Env.Load(".env.local");
@@ -24,19 +24,19 @@ catch
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ── Database ──────────────────────────────────────────────
+// Cấu hình kết nối cơ sở dữ liệu SQL Server (Entity Framework Core)
 var defaultConnStr = (DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null) 
                      ?? builder.Configuration.GetConnectionString("DefaultConnection"))?.Trim('"');
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(defaultConnStr));
 
-// ── Redis ─────────────────────────────────────────────────
+// Đăng ký kết nối Redis Cache phục vụ quản lý số lượng tồn kho (Inventory)
 var redisConn = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
 builder.Services.AddSingleton<IConnectionMultiplexer>(
     ConnectionMultiplexer.Connect(redisConn + ",abortConnect=false"));
 builder.Services.AddScoped<IInventoryService, RedisInventoryService>();
 
-// ── Rate Limiting ─────────────────────────────────────────
+// Cấu hình giới hạn tần suất yêu cầu (Rate Limiting) ngăn chặn spam đặt hàng
 builder.Services.AddRateLimiter(options =>
 {
     options.AddFixedWindowLimiter("OrderLimit", opt =>
@@ -49,7 +49,7 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = 429;
 });
 
-// ── Identity ──────────────────────────────────────────────
+// Cấu hình ASP.NET Core Identity để quản lý tài khoản người dùng và mật khẩu bảo mật
 builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
 {
     options.Password.RequireDigit = false;
@@ -63,7 +63,7 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
-// ── JWT Authentication ────────────────────────────────────
+// Cấu hình Xác thực dựa trên JWT (JSON Web Token) cho các API yêu cầu đăng nhập
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 builder.Services.AddAuthentication(options =>
 {
@@ -84,10 +84,10 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// ── CORS (ĐÃ SỬA ĐỂ MỞ CỬA CHO NGROK & SEPAY) ──────────────
+// Cấu hình chia sẻ tài nguyên nguồn gốc chéo (CORS) cho môi trường dev và nhận webhook
 builder.Services.AddCors(options =>
 {
-    // Giữ nguyên Policy cũ cho FE
+    // Cấu hình cho phép kết nối từ Front-end client (Vite/React)
     options.AddPolicy("AllowViteClient", policy =>
         policy
             .WithOrigins(
@@ -102,7 +102,7 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod()
             .AllowCredentials());
             
-    // THÊM POLICY MỚI: Cho phép mọi thứ để nhận Webhook
+    // Cấu hình mở rộng cho các bên thứ ba gửi Webhook thanh toán (ví dụ: Sepay)
     options.AddPolicy("AllowAll", policy =>
         policy
             .AllowAnyOrigin()
@@ -110,7 +110,7 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader());
 });
 
-// ── Controllers + Services + Swagger ─────────────────────
+// Đăng ký các dịch vụ hệ thống và tích hợp bên thứ ba (VnPay, ZaloPay, Email)
 builder.Services.AddHttpClient(); // Đăng ký IHttpClientFactory
 builder.Services.AddScoped<IVnPayService, VnPayService>();
 builder.Services.AddScoped<IZaloPayService, ZaloPayService>();
@@ -199,7 +199,7 @@ if (app.Environment.IsDevelopment())
 
 
 
-// ⚠️ QUAN TRỌNG: Sử dụng Policy AllowAll để không bị chặn lỗi 403
+// Sử dụng cấu hình CORS để cho phép các nguồn gốc bên ngoài kết nối
 app.UseCors("AllowAll");
 
 app.UseAuthentication();
@@ -210,7 +210,7 @@ app.MapControllers();
 app.MapHub<Web_HoaTuoi.Server.Hubs.OrderHub>("/hubs/orders");
 app.MapFallbackToFile("/index.html");
 
-// ── Auto migrate + Seed khi khởi động ─────────────────────
+// Tự động cập nhật cơ sở dữ liệu (Auto Migration) và nạp dữ liệu mẫu khi khởi động ứng dụng
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -223,7 +223,7 @@ using (var scope = app.Services.CreateScope())
     var inventory = scope.ServiceProvider.GetRequiredService<IInventoryService>();
     await inventory.SyncFromDatabaseAsync(db);
 
-    // Tự động chạy DWH ETL và đồng bộ MongoDB Vector Database trong luồng nền
+    // Tiến hành đồng bộ luồng nền: Cập nhật Data Warehouse (DWH) và MongoDB Vector Database
     var rootServiceProvider = app.Services;
     _ = Task.Run(async () =>
     {
@@ -272,7 +272,7 @@ async Task EnsureDwhInitializedAsync(string dwhConnStr)
 {
     try
     {
-        // 1. Kết nối tới master để đảm bảo database HoaTuoi_DWH tồn tại
+        // 1. Kết nối tới cơ sở dữ liệu hệ thống (master) để kiểm tra và khởi tạo database HoaTuoi_DWH
         var builder = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(dwhConnStr);
         builder.InitialCatalog = "master";
         var masterConnStr = builder.ConnectionString;
@@ -285,12 +285,12 @@ async Task EnsureDwhInitializedAsync(string dwhConnStr)
             await cmd.ExecuteNonQueryAsync();
         }
 
-        // 2. Kết nối tới HoaTuoi_DWH để khởi tạo các bảng và stored procedure
+        // 2. Kết nối trực tiếp tới HoaTuoi_DWH để khởi tạo các bảng (Dimension/Fact) và stored procedure
         using (var conn = new Microsoft.Data.SqlClient.SqlConnection(dwhConnStr))
         {
             await conn.OpenAsync();
 
-            // Tự động nâng cấp cột CustomerId từ INT lên NVARCHAR(450) nếu là database cũ
+            // Cập nhật kiểu dữ liệu cho cột khóa chính CustomerId sang NVARCHAR(450) nếu là DB cũ
             try
             {
                 using var upgradeCmd = conn.CreateCommand();
@@ -312,7 +312,7 @@ async Task EnsureDwhInitializedAsync(string dwhConnStr)
                 Console.WriteLine($"[DWH Auto-Init Warning] Khong the nang cap cot CustomerId: {ex.Message}");
             }
 
-            // Kiểm tra xem bảng Dim_Customer đã tồn tại chưa
+            // Kiểm tra sự tồn tại của bảng Dim_Customer để quyết định khởi tạo cấu trúc dữ liệu
             bool tableExists = false;
             try
             {
@@ -343,7 +343,7 @@ async Task EnsureDwhInitializedAsync(string dwhConnStr)
                 }
             }
 
-            // Luôn cập nhật/tạo mới stored procedure ETL
+            // Cập nhật hoặc tạo mới stored procedure ETL cho kho dữ liệu
             var etlPath = Path.Combine(FindSqlDataDir(), "etl_procedure_fixed.sql");
             if (File.Exists(etlPath))
             {

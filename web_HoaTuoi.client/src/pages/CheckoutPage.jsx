@@ -11,11 +11,9 @@ import toast from 'react-hot-toast';
 import { MapPin, QrCode, Banknote, X, CheckCircle, User, Phone, MessageSquare, Calendar, ChevronRight, ShoppingBag, CreditCard, Truck, ArrowLeft, Loader2, Ticket } from 'lucide-react';
 import LocationPicker from '../components/common/LocationPicker';
 
-// ============================================================
-// Modal QR thanh toán - Tự động xác nhận & Chuyên nghiệp
-// ============================================================
+// Hợp phần hiển thị Modal quét mã QR chuyển khoản VietQR
 function QrPaymentModal({ qrInfo, onClose, navigate }) {
-  const [countdown, setCountdown] = useState(600); // 10 phút
+  const [countdown, setCountdown] = useState(600); // Đếm ngược thời hạn chuyển khoản (10 phút)
   const [isSuccess, setIsSuccess] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
   const [redirectCount, setRedirectCount] = useState(5);
@@ -24,7 +22,7 @@ function QrPaymentModal({ qrInfo, onClose, navigate }) {
   const displayAmount = Math.max(2000, qrInfo.amount || 0);
   const qrImageUrl = `https://img.vietqr.io/image/${qrInfo.bankId}-${qrInfo.accountNumber}-qr_only.png?amount=${displayAmount}&addInfo=${encodeURIComponent(qrInfo.description)}&accountName=${encodeURIComponent(qrInfo.accountName)}`;
 
-  // Đếm ngược 10 phút
+  // Đếm ngược thời gian thanh toán (10 phút)
   useEffect(() => {
     const timer = setInterval(() => {
       setCountdown(c => {
@@ -35,24 +33,24 @@ function QrPaymentModal({ qrInfo, onClose, navigate }) {
     return () => clearInterval(timer);
   }, []);
 
-  // Polling tự động check trạng thái thanh toán từ Server (khi có Webhook hoặc Admin duyệt)
+  // Thực hiện cơ chế Polling để liên tục kiểm tra trạng thái thanh toán từ API Server
   useEffect(() => {
     if (isSuccess || !qrInfo.orderId) return;
     const pollInterval = setInterval(async () => {
       try {
         const res = await apiClient.get(`/orders/${qrInfo.orderId}`);
-        // Kiểm tra cả camelCase và PascalCase
+        // Kiểm tra trạng thái đã thanh toán từ dữ liệu phản hồi
         if (res.data && (res.data.isPaid === true || res.data.IsPaid === true)) {
           setIsSuccess(true);
           toast.success('🎉 Hệ thống đã nhận được thanh toán!');
           clearInterval(pollInterval);
         }
-      } catch (e) { /* bỏ qua lỗi tạm thời */ }
+      } catch (e) { /* Bỏ qua lỗi tạm thời khi ngắt kết nối hoặc server quá tải */ }
     }, 3000);
     return () => clearInterval(pollInterval);
   }, [qrInfo.orderId, isSuccess]);
 
-  // Confetti animation khi thành công
+  // Tạo hiệu ứng pháo hoa giấy (Confetti) khi thanh toán thành công
   useEffect(() => {
     if (!isSuccess) return;
     const canvas = canvasRef.current;
@@ -94,7 +92,7 @@ function QrPaymentModal({ qrInfo, onClose, navigate }) {
     return () => { cancelAnimationFrame(animId); clearTimeout(stop); };
   }, [isSuccess]);
 
-  // Tự động redirect sau 5 giây khi thanh toán thành công
+  // Tự động chuyển hướng khách hàng về trang xem Đơn hàng sau 5 giây thành công
   useEffect(() => {
     if (!isSuccess) return;
     if (redirectCount <= 0) { navigate('/don-hang'); return; }

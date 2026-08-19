@@ -193,7 +193,7 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Rating */}
-          <div className="flex items-center gap-4 py-1">
+          <div className="flex flex-wrap items-center gap-4 py-1">
             <div className="flex items-center gap-1.5">
               <RatingStars rating={product.averageRating || 5} size={18} color="#FFB800" />
               <span className="text-lg font-black text-[#FFB800]">
@@ -314,7 +314,7 @@ export default function ProductDetailPage() {
       </div>
 
       {/* Tabs: Mô tả / Thông số / Đánh giá */}
-      <div className="border-b border-gray-200 flex gap-6 mb-6">
+      <div className="border-b border-gray-200 flex gap-6 mb-6 overflow-x-auto scrollbar-hide whitespace-nowrap">
         {[
           { key: 'desc', label: 'Mô tả' },
           { key: 'spec', label: 'Thông tin' },

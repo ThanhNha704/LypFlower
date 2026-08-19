@@ -55,14 +55,14 @@ namespace Web_HoaTuoi.Server.Controllers
             List<dynamic> matchedResults = new();
             bool vectorSearchSuccess = false;
 
-            // ── 1. Thử Vector Search với Gemini + MongoDB ─────────────────────
+            // 1. Thực hiện tìm kiếm Vector (Vector Search) sử dụng dịch vụ Gemini Embedding kết hợp dữ liệu MongoDB
             try
             {
                 var queryVector = await GetEmbeddingFromGeminiAsync(request.Query);
                 if (queryVector != null && queryVector.Count > 0)
                 {
                     var mongoSettings = MongoClientSettings.FromConnectionString(_mongoConnString);
-                    mongoSettings.ServerSelectionTimeout = TimeSpan.FromSeconds(3); // Giới hạn timeout 3s
+                    mongoSettings.ServerSelectionTimeout = TimeSpan.FromSeconds(3); // Giới hạn thời gian kết nối tối đa 3 giây
                     var client = new MongoClient(mongoSettings);
 
                     var database = client.GetDatabase("HoaTuoiSearchDB");
@@ -129,7 +129,7 @@ namespace Web_HoaTuoi.Server.Controllers
                 Console.WriteLine($"[Vector Search Warning]: {ex.Message}. Fallback to SQL Search.");
             }
 
-            // ── 2. Fallback sang SQL Server nếu MongoDB/Gemini không trả kết quả ───
+            // 2. Dự phòng (Fallback): Thực hiện truy vấn trên SQL Server nếu tìm kiếm Vector thất bại
             if (!vectorSearchSuccess || matchedResults.Count == 0)
             {
                 var queryLower = request.Query.ToLower();
@@ -191,7 +191,7 @@ namespace Web_HoaTuoi.Server.Controllers
                 matchedResults = sqlMatched;
             }
 
-            // ── 3. Tạo câu tư vấn AI từ danh sách hoa tìm được ────────────────
+            // 3. Gọi dịch vụ Gemini AI để tạo lập câu văn tư vấn dựa trên danh sách sản phẩm tìm được
             string aiResponseText = await GenerateAiSummaryAsync(request.Query, matchedResults);
 
             return Ok(new

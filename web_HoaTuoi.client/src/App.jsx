@@ -60,7 +60,7 @@ export default function App() {
 
                 <Routes>
 
-                    {/* CUSTOMER */}
+                    {/* Nhóm tuyến đường (Routes) dành cho giao diện Khách hàng */}
                     <Route element={<CustomerLayout />}>
 
                         <Route path="/" element={<HomePage />} />
@@ -99,16 +99,16 @@ export default function App() {
 
                     </Route>
 
-                    {/* LOGIN & PASSWORD RECOVERY */}
+                    {/* Nhóm tuyến đường Đăng nhập và Khôi phục mật khẩu */}
                     <Route path="/dang-nhap" element={<LoginPage />} />
                     <Route path="/dang-ky" element={<LoginPage />} />
                     <Route path="/quen-mat-khau" element={<ForgotPasswordPage />} />
                     <Route path="/dat-lai-mat-khau" element={<ResetPasswordPage />} />
 
-                    {/* VNPAY */}
+                    {/* Tuyến đường xử lý phản hồi kết quả từ cổng thanh toán VNPay */}
                     <Route path="/checkout/vnpay-return" element={<VnPayReturnPage />} />
 
-                    {/* ADMIN */}
+                    {/* Nhóm tuyến đường dành cho giao diện Quản lý (Admin) */}
                     <Route path="/admin" element={<AdminLayout />}>
                         <Route index element={<AdminDashboard />} />
                         <Route path="san-pham" element={<AdminProducts />} />
@@ -124,13 +124,13 @@ export default function App() {
                         <Route path="bao-cao" element={<AdminReports />} />
                     </Route>
 
-                    {/* STAFF */}
+                    {/* Nhóm tuyến đường dành cho giao diện Nhân viên giao hàng (Staff) */}
                     <Route path="/nhan-vien" element={<StaffLayout />}>
                         <Route index element={<StaffDashboard />} />
                         <Route path="don-hang" element={<StaffOrders />} />
                     </Route>
 
-                    {/* FALLBACK */}
+                    {/* Tuyến đường mặc định chuyển hướng khi URL không khớp (Fallback) */}
                     <Route path="*" element={<Navigate to="/" replace />} />
 
                 </Routes>

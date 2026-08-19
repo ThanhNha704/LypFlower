@@ -86,14 +86,14 @@ namespace Web_HoaTuoi.Server.Services
             var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<OrderHub>>();
 
-            // Get pending unpaid orders
+            // Lấy danh sách các đơn hàng ở trạng thái chờ (Placed) và chưa thanh toán
             var pendingOrders = await dbContext.Orders
                 .Where(o => !o.IsPaid && o.Status == OrderStatus.Placed)
                 .ToListAsync(stoppingToken);
 
             if (!pendingOrders.Any())
             {
-                return; // No orders to check
+                return;
             }
 
             bool hasChanges = false;
@@ -112,17 +112,17 @@ namespace Web_HoaTuoi.Server.Services
 
                 var txContent = tx.GetProperty("transaction_content").GetString() ?? "";
                 
-                // Chuẩn hóa content
+                // Chuẩn hóa nội dung chuyển khoản để đối chiếu chính xác
                 string normalizedTxContent = Regex.Replace(txContent.ToUpper(), @"[^A-Z0-9]", "");
 
-                // Tìm order khớp
+                // Duyệt qua danh sách đơn hàng chờ để đối chiếu mã đơn hàng
                 foreach (var order in pendingOrders)
                 {
                     string normalizedOrderCode = Regex.Replace(order.OrderCode.ToUpper(), @"[^A-Z0-9]", "");
                     
                     if (normalizedTxContent.Contains(normalizedOrderCode))
                     {
-                        // Khớp OrderCode, kiểm tra số tiền
+                        // Xác nhận thanh toán thành công nếu số tiền chuyển khoản khớp hoặc lớn hơn giá trị đơn hàng
                         if (amountIn >= order.FinalAmount)
                         {
                             order.IsPaid = true;
@@ -131,7 +131,7 @@ namespace Web_HoaTuoi.Server.Services
                             
                             _logger.LogInformation("✅ [Polling] Order {OrderCode} marked as Paid via SePay.", order.OrderCode);
                             
-                            // Send SignalR
+                            // Gửi thông báo thời gian thực đến Client qua SignalR Hub
                             await hubContext.Clients.All.SendAsync("PaymentReceived", new
                             {
                                 OrderCode = order.OrderCode,
@@ -145,7 +145,7 @@ namespace Web_HoaTuoi.Server.Services
                                 Status = order.Status.ToString() 
                             }, stoppingToken);
                             
-                            break; // Stop checking this transaction against other orders
+                            break;
                         }
                     }
                 }
