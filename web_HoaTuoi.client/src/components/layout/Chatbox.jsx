@@ -1,6 +1,6 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { MessageSquare, Send, X, ChevronDown, RefreshCw, Sparkles } from "lucide-react";
+import { MessageSquare, Send, X, ChevronDown, RefreshCw, Sparkles, Trash2 } from "lucide-react";
 import apiClient from "../../api/client";
 import { resolveImage } from "../../utils/imageResolver";
 import toast from "react-hot-toast";

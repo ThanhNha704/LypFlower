@@ -25,7 +25,8 @@ public class UsersController : ControllerBase
     public async Task<ActionResult> GetUsers(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
-        [FromQuery] string? search = null)
+        [FromQuery] string? search = null,
+        [FromQuery] string? role = null)
     {
         var query = _userManager.Users.AsNoTracking().AsQueryable();
 
@@ -37,6 +38,27 @@ public class UsersController : ControllerBase
                 (u.Email != null && u.Email.ToLower().Contains(s)) ||
                 (u.PhoneNumber != null && u.PhoneNumber.Contains(s))
             );
+        }
+
+        if (!string.IsNullOrEmpty(role))
+        {
+            if (role.Equals("Customer", StringComparison.OrdinalIgnoreCase))
+            {
+                var nonCustomerUserIds = from ur in _context.UserRoles
+                                         join r in _context.Roles on ur.RoleId equals r.Id
+                                         where r.Name == "Admin" || r.Name == "Staff"
+                                         select ur.UserId;
+
+                query = query.Where(u => !nonCustomerUserIds.Contains(u.Id));
+            }
+            else
+            {
+                query = from u in query
+                        join ur in _context.UserRoles on u.Id equals ur.UserId
+                        join r in _context.Roles on ur.RoleId equals r.Id
+                        where r.Name == role
+                        select u;
+            }
         }
 
         var total = await query.CountAsync();

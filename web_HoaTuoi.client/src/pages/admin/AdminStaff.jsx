@@ -11,33 +11,54 @@ const ROLE_LABELS = {
   Customer: { label: 'Khách hàng', cls: 'bg-green-50 text-green-600 border border-green-100', icon: User }
 };
 
-export default function AdminUsers() {
+export default function AdminStaff() {
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState('Staff'); // 'Staff' | 'Admin'
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [staffForm, setStaffForm] = useState({ fullName: '', email: '', phone: '', password: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const currentUser = useAuthStore(state => state.user);
 
   const PAGE_SIZE = 15;
 
   const fetchUsers = () => {
-    apiClient.get(`/users?page=${page}&pageSize=${PAGE_SIZE}&role=Customer${search ? `&search=${search}` : ''}`)
+    apiClient.get(`/users?page=${page}&pageSize=${PAGE_SIZE}&role=${activeTab}${search ? `&search=${search}` : ''}`)
       .then(r => { 
         setUsers(r.data.items ?? []); 
         setTotal(r.data.total ?? 0); 
       })
-      .catch(() => toast.error('Không thể tải danh sách khách hàng'));
+      .catch(() => toast.error('Không thể tải danh sách tài khoản nhân sự'));
   };
 
   useEffect(() => { 
     fetchUsers(); 
-  }, [page]);
+  }, [page, activeTab]);
 
   const handleSearch = (e) => {
     if (e.key === 'Enter') {
       setPage(1);
       fetchUsers();
+    }
+  };
+
+  const handleCreateStaff = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await apiClient.post('/users/staff', staffForm);
+      toast.success('Tạo tài khoản nhân viên thành công');
+      setIsModalOpen(false);
+      setStaffForm({ fullName: '', email: '', phone: '', password: '' });
+      fetchUsers();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -67,9 +88,35 @@ export default function AdminUsers() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Quản lý Khách hàng</h1>
-          <p className="text-sm text-gray-400">{total} tài khoản</p>
+          <h1 className="text-xl font-bold text-gray-900">Quản lý Nhân viên & Quản trị</h1>
+          <p className="text-sm text-gray-400">{total} nhân sự hoạt động</p>
         </div>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="btn-primary flex items-center gap-2"
+        >
+          <Plus size={18} /> Tạo TK Nhân viên
+        </button>
+      </div>
+
+      {/* Tabs Phân chia Staff / Admin */}
+      <div className="border-b border-gray-100 flex gap-4">
+        <button
+          onClick={() => { setActiveTab('Staff'); setPage(1); }}
+          className={`pb-3 text-sm font-semibold border-b-2 transition-colors ${
+            activeTab === 'Staff' ? 'border-pink-500 text-pink-650' : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          Nhân viên (Staff)
+        </button>
+        <button
+          onClick={() => { setActiveTab('Admin'); setPage(1); }}
+          className={`pb-3 text-sm font-semibold border-b-2 transition-colors ${
+            activeTab === 'Admin' ? 'border-pink-500 text-pink-650' : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          Quản trị viên (Admin)
+        </button>
       </div>
 
       <div className="relative max-w-md">
@@ -90,7 +137,6 @@ export default function AdminUsers() {
                 <th className="px-5 py-4 text-left font-semibold text-gray-600">Họ tên / ID</th>
                 <th className="px-5 py-4 text-left font-semibold text-gray-600">Liên hệ</th>
                 <th className="px-5 py-4 text-left font-semibold text-gray-600">Vai trò</th>
-                <th className="px-5 py-4 text-left font-semibold text-gray-600">Đơn hàng</th>
                 <th className="px-5 py-4 text-left font-semibold text-gray-600">Ngày tạo</th>
                 <th className="px-5 py-4 text-left font-semibold text-gray-600">Trạng thái</th>
                 <th className="px-5 py-4 text-left font-semibold text-gray-600 w-44">Thao tác</th>
@@ -110,7 +156,7 @@ export default function AdminUsers() {
                           {u.fullName?.charAt(0)?.toUpperCase() || u.email?.charAt(0)?.toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-bold text-gray-800">{u.fullName || 'Khách vãng lai'}</p>
+                          <p className="font-bold text-gray-800">{u.fullName || 'Nhân viên mới'}</p>
                           <p className="text-[10px] text-gray-400 font-mono">{u.id.substring(0, 8)}...</p>
                         </div>
                       </div>
@@ -124,17 +170,6 @@ export default function AdminUsers() {
                         <RoleIcon size={12} />
                         {roleStyle.label}
                       </span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex flex-col gap-0.5 text-xs">
-                        <div className="flex items-center gap-1.5 text-gray-600">
-                          <ListOrdered size={13} className="text-blue-400" />
-                          <span><b>{u.totalOrders}</b> đơn</span>
-                        </div>
-                        <div className="text-amber-600 font-medium">
-                          {formatVnd(u.totalSpent)}
-                        </div>
-                      </div>
                     </td>
                     <td className="px-5 py-4 text-gray-500 text-xs">
                       <div className="flex items-center gap-1.5">
@@ -180,8 +215,8 @@ export default function AdminUsers() {
               })}
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center py-16 text-gray-400">
-                    Chưa có khách hàng nào
+                  <td colSpan={6} className="text-center py-16 text-gray-400">
+                    Chưa có tài khoản nào trong vai trò này
                   </td>
                 </tr>
               )}
@@ -200,6 +235,50 @@ export default function AdminUsers() {
           </div>
         )}
       </div>
+
+      {/* Modal Tạo Nhân Viên */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <h3 className="font-bold text-lg text-gray-900">Tạo tài khoản Nhân viên</h3>
+              <button onClick={() => setIsModalOpen(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateStaff} className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Họ tên *</label>
+                <input required type="text" className="input" placeholder="Nguyễn Văn A"
+                  value={staffForm.fullName} onChange={e => setStaffForm({...staffForm, fullName: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email * (Dùng để đăng nhập)</label>
+                <input required type="email" className="input" placeholder="nhanvien@hoatuoi.vn"
+                  value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu *</label>
+                <input required type="password" className="input" placeholder="Mật khẩu ít nhất 6 ký tự"
+                  value={staffForm.password} onChange={e => setStaffForm({...staffForm, password: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
+                <input type="tel" className="input" placeholder="09xxxx"
+                  value={staffForm.phone} onChange={e => setStaffForm({...staffForm, phone: e.target.value})} />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="btn-ghost px-4 py-2 text-gray-500 hover:text-gray-700">Hủy</button>
+                <button type="submit" disabled={isSubmitting} className="btn-primary">
+                  {isSubmitting ? 'Đang tạo...' : 'Tạo tài khoản'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

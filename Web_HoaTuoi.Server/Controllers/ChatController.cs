@@ -355,6 +355,51 @@ namespace Web_HoaTuoi.Server.Controllers
                         productContext = "\nSản phẩm hoa phù hợp hiện có tại cửa hàng:\n" + string.Join("\n", productDetails);
                     }
 
+                    // Chuẩn bị bối cảnh đơn hàng của người dùng (nếu đã đăng nhập hoặc tìm thấy mã đơn cụ thể)
+                    string orderContext = "";
+                    if (!string.IsNullOrEmpty(session.UserId))
+                    {
+                        var recentOrders = await _db.Orders
+                            .Where(o => o.UserId == session.UserId)
+                            .OrderByDescending(o => o.CreatedAt)
+                            .Take(3)
+                            .Select(o => new {
+                                o.OrderCode,
+                                o.CreatedAt,
+                                o.Status,
+                                o.FinalAmount,
+                                o.IsPaid,
+                                o.ReceiverName
+                            })
+                            .ToListAsync();
+
+                        if (recentOrders.Any())
+                        {
+                            var orderStrings = recentOrders.Select(o => 
+                                $"- Đơn hàng {o.OrderCode}: Trị giá {o.FinalAmount:N0}đ, đặt lúc {o.CreatedAt.AddHours(7):dd/MM/yyyy HH:mm}, Trạng thái: {o.Status} ({(o.IsPaid ? "Đã thanh toán" : "Chưa thanh toán")}), Người nhận: {o.ReceiverName}");
+                            orderContext = "\nLịch sử đơn hàng gần đây của khách hàng:\n" + string.Join("\n", orderStrings) + "\n";
+                        }
+                    }
+
+                    // Quét tìm mã đơn hàng cụ thể trong tin nhắn nếu có
+                    var orderCodeRegex = new System.Text.RegularExpressions.Regex(@"LYP-[0-9A-Z]+", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    var codeMatch = orderCodeRegex.Match(request.Message);
+                    if (codeMatch.Success)
+                    {
+                        var searchedCode = codeMatch.Value.ToUpper();
+                        var specificOrder = await _db.Orders
+                            .FirstOrDefaultAsync(o => o.OrderCode.ToUpper() == searchedCode);
+
+                        if (specificOrder != null)
+                        {
+                            orderContext += $"\n[Thông tin đơn hàng cụ thể khách đang tra cứu]:\nMã đơn: {specificOrder.OrderCode}, Trị giá: {specificOrder.FinalAmount:N0}đ, đặt lúc {specificOrder.CreatedAt.AddHours(7):dd/MM/yyyy HH:mm}, Trạng thái: {specificOrder.Status} ({(specificOrder.IsPaid ? "Đã thanh toán" : "Chưa thanh toán")}), Người nhận: {specificOrder.ReceiverName}, Địa chỉ: {specificOrder.ReceiverAddress}\n";
+                        }
+                        else
+                        {
+                            orderContext += $"\n[Thông tin tra cứu]: Khách hàng muốn tra cứu đơn hàng {searchedCode} nhưng không tìm thấy đơn này trong hệ thống. Hãy báo lại rằng không tìm thấy đơn hàng này và yêu cầu họ kiểm tra lại mã đơn.\n";
+                        }
+                    }
+
                     // Xây dựng Prompt
                     StringBuilder promptBuilder = new StringBuilder();
                     promptBuilder.AppendLine($"Instruction: {systemInstruction}");
@@ -364,6 +409,10 @@ namespace Web_HoaTuoi.Server.Controllers
                         promptBuilder.AppendLine($"{msg.Sender}: {msg.Content}");
                     }
                     promptBuilder.AppendLine($"{productContext}");
+                    if (!string.IsNullOrEmpty(orderContext))
+                    {
+                        promptBuilder.AppendLine($"{orderContext}");
+                    }
                     promptBuilder.AppendLine($"Khách hàng: {request.Message}");
                     promptBuilder.AppendLine("AI:");
 
@@ -498,6 +547,20 @@ namespace Web_HoaTuoi.Server.Controllers
             await _db.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        [HttpDelete("sessions")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteAllChatSessions()
+        {
+            var messages = await _db.ChatMessages.ToListAsync();
+            _db.ChatMessages.RemoveRange(messages);
+            
+            var sessions = await _db.ChatSessions.ToListAsync();
+            _db.ChatSessions.RemoveRange(sessions);
+            
+            await _db.SaveChangesAsync();
+            return Ok(new { message = "Đã xóa toàn bộ lịch sử trò chuyện thành công." });
         }
 
         [HttpGet("settings")]

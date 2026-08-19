@@ -34,6 +34,7 @@ import AdminOrders from './pages/admin/AdminOrders'
 import AdminReviews from './pages/admin/AdminReviews'
 import AdminBlog from './pages/admin/AdminBlog'
 import AdminUsers from './pages/admin/AdminUsers'
+import AdminStaff from './pages/admin/AdminStaff'
 import AdminVouchers from './pages/admin/AdminVouchers'
 import AdminShipping from './pages/admin/AdminShipping'
 import AdminSettings from './pages/admin/AdminSettings'
@@ -115,6 +116,7 @@ export default function App() {
                         <Route path="danh-muc" element={<AdminCategories />} />
                         <Route path="don-hang" element={<AdminOrders />} />
                         <Route path="nguoi-dung" element={<AdminUsers />} />
+                        <Route path="nhan-vien" element={<AdminStaff />} />
                         <Route path="danh-gia" element={<AdminReviews />} />
                         <Route path="blog" element={<AdminBlog />} />
                         <Route path="khuyen-mai" element={<AdminVouchers />} />

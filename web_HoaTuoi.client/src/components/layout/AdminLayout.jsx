@@ -19,7 +19,8 @@ import {
     Home,
     Bell,
     Bot,
-    X
+    X,
+    ShieldCheck
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { HubConnectionBuilder } from '@microsoft/signalr';
@@ -30,7 +31,8 @@ const adminNav = [
     { to: "/admin/san-pham", label: "Sản phẩm hoa", icon: Package },
     { to: "/admin/danh-muc", label: "Danh mục", icon: Tag },
     { to: "/admin/don-hang", label: "Đơn hàng", icon: ShoppingBag },
-    { to: "/admin/nguoi-dung", label: "Người dùng", icon: Users },
+    { to: "/admin/nguoi-dung", label: "Khách hàng", icon: Users },
+    { to: "/admin/nhan-vien", label: "Nhân viên", icon: ShieldCheck },
     { to: "/admin/danh-gia", label: "Đánh giá", icon: Star },
     { to: "/admin/blog", label: "Tin tức & Blog", icon: FileText },
     { to: "/admin/khuyen-mai", label: "Khuyến mãi", icon: Ticket },

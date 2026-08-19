@@ -116,6 +116,20 @@ export default function AdminAiChat() {
     }
   };
 
+  // Delete All Sessions
+  const handleDeleteAllSessions = async () => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa TOÀN BỘ lịch sử trò chuyện của tất cả khách hàng? Thao tác này không thể hoàn tác.")) return;
+
+    try {
+      await apiClient.delete("/chat/sessions");
+      toast.success("Đã xóa toàn bộ lịch sử trò chuyện");
+      setSelectedSession(null);
+      fetchSessions();
+    } catch {
+      toast.error("Không thể xóa lịch sử trò chuyện");
+    }
+  };
+
   // Save Settings
   const handleSaveSettings = async (e) => {
     e.preventDefault();
@@ -187,14 +201,24 @@ export default function AdminAiChat() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-base font-bold text-gray-900">Danh sách phiên trò chuyện của khách</h2>
-              <button 
-                onClick={fetchSessions} 
-                disabled={loadingSessions} 
-                className="p-1.5 text-gray-400 hover:text-pink-600 rounded-lg hover:bg-slate-50 transition-colors"
-                title="Làm mới"
-              >
-                <RefreshCw size={16} className={loadingSessions ? "animate-spin" : ""} />
-              </button>
+              <div className="flex items-center gap-2">
+                {sessions.length > 0 && (
+                  <button
+                    onClick={handleDeleteAllSessions}
+                    className="btn-outline border-red-200 text-red-500 hover:bg-red-50 py-1.5 px-3 flex items-center gap-1.5 text-xs font-bold"
+                  >
+                    <Trash2 size={14} /> Xóa tất cả
+                  </button>
+                )}
+                <button 
+                  onClick={fetchSessions} 
+                  disabled={loadingSessions} 
+                  className="p-1.5 text-gray-400 hover:text-pink-600 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                  title="Làm mới"
+                >
+                  <RefreshCw size={16} className={loadingSessions ? "animate-spin" : ""} />
+                </button>
+              </div>
             </div>
 
             {loadingSessions ? (
