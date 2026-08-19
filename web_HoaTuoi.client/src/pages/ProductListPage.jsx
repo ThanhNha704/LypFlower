@@ -63,40 +63,24 @@ export default function ProductListPage() {
     setSearchParams(next);
   }
 
-  const categoryTitleMap = {
-    'hoa-sinh-nhat': 'Hoa Sinh Nhật',
-    'hoa-khai-truong': 'Hoa Khai Trương',
-    'hoa-cuoi-cho-co-dau': 'Hoa Cưới & Cô Dâu',
-    'hoa-chia-buon-tang-le': 'Hoa Chia Buồn & Tang Lễ',
-    'hoa-theo-loai': 'Hoa Theo Loại',
-    'hoa-thiet-ke-theo-kieu-dang': 'Hoa Thiết Kế Theo Kiểu Dáng',
-    'hoa-chu-de-dip-le': 'Hoa Chủ Đề Dịp Lễ',
-    'hoa-sap-hoa-kho': 'Hoa Sáp & Hoa Khô',
-    'cay-canh-chau-hoa-de-ban': 'Cây Cảnh & Chậu Hoa Để Bàn',
-    'qua-tang-kem': 'Quà Tặng Kèm',
-    'hoa-choi-tet-nu-tam-xuan': 'Hoa Chơi Tết & Nụ Tầm Xuân',
-    'dich-vu-trang-tri-hoa-su-kien': 'Dịch Vụ Trang Trí Hoa Sự Kiện',
-    'goi-dang-ky-hoa-dinh-ky': 'Gói Đăng Ký Hoa Định Kỳ'
-  };
-
   let pageTitle = 'Tất cả sản phẩm';
   if (filters.q) {
     pageTitle = `Tìm kiếm: "${filters.q}"`;
   } else if (filters.categorySlug && filters.flowerType) {
-    pageTitle = `${categoryTitleMap[filters.categorySlug] || filters.categorySlug} — ${filters.flowerType}`;
+    pageTitle = `${filters.categorySlug.replace(/-/g, ' ')} — ${filters.flowerType}`;
   } else if (filters.flowerType) {
     pageTitle = `Loại hoa: ${filters.flowerType}`;
   } else if (filters.occasion) {
     pageTitle = `Dịp tặng: ${filters.occasion}`;
   } else if (filters.categorySlug) {
-    pageTitle = categoryTitleMap[filters.categorySlug] || filters.categorySlug.replace(/-/g, ' ');
+    pageTitle = filters.categorySlug.replace(/-/g, ' ');
   }
 
   const activeBadges = [];
   if (filters.categorySlug) {
     activeBadges.push({
       key: 'category',
-      label: `Danh mục: ${categoryTitleMap[filters.categorySlug] || filters.categorySlug}`
+      label: `Danh mục: ${filters.categorySlug.replace(/-/g, ' ')}`
     });
   }
   if (filters.flowerType) {
