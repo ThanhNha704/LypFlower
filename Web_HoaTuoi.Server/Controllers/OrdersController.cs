@@ -375,6 +375,7 @@ public class OrdersController : ControllerBase
                 o.FinalAmount,
                 IsPaid = (bool?)o.IsPaid ?? false,
                 o.StaffId,
+                o.IsStorePickup,
                 o.CreatedAt
             })
             .ToListAsync();
@@ -548,6 +549,12 @@ public class OrdersController : ControllerBase
         if (order.Status == OrderStatus.Completed)
         {
             return BadRequest("Không thể phân công nhân viên cho đơn hàng đã hoàn tất.");
+        }
+
+        // Chặn phân công staff khi đơn hàng khách tự đến lấy (Store Pickup)
+        if (order.IsStorePickup)
+        {
+            return BadRequest("Đơn hàng này khách tự nhận tại cửa hàng (Store Pickup), không cần phân công nhân viên giao hàng.");
         }
 
         var staff = await _userManager.FindByIdAsync(staffId);

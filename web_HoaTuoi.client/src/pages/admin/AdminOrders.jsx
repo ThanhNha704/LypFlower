@@ -7,12 +7,13 @@ import { formatVnd } from '../../utils/format';
 import { resolveImage } from '../../utils/imageResolver';
 import toast from 'react-hot-toast';
 
-const STATUSES = ['', 'Placed', 'Preparing', 'Delivering', 'Completed'];
+const STATUSES = ['', 'Placed', 'Preparing', 'Delivering', 'Completed', 'Cancelled'];
 const STATUS_LABELS = {
   Placed:    { label: 'Đã đặt hàng', cls: 'bg-yellow-100 text-yellow-700' },
   Preparing: { label: 'Đang chuẩn bị', cls: 'bg-blue-100 text-blue-700' },
   Delivering:   { label: 'Đang giao',    cls: 'bg-purple-100 text-purple-700' },
   Completed:  { label: 'Hoàn thành',   cls: 'bg-green-100 text-green-700' },
+  Cancelled:  { label: 'Đã hủy',       cls: 'bg-red-100 text-red-700' },
 };
 
 export default function AdminOrders() {
@@ -302,7 +303,11 @@ export default function AdminOrders() {
           </button>
         </td>
         <td className="px-5 py-3">
-          {(o.status === 'Placed' || o.status === 'Preparing' || o.status === 'Delivering') ? (
+          {o.isStorePickup ? (
+            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
+              Khách tự lấy
+            </span>
+          ) : (o.status === 'Placed' || o.status === 'Preparing' || o.status === 'Delivering') ? (
             <select
               value={o.staffId || ''}
               onChange={e => assignStaff(o.id, e.target.value)}

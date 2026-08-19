@@ -13,12 +13,12 @@ namespace Web_HoaTuoi.Server.Services
 
         public DwhSyncService(IConfiguration configuration)
         {
-            _defaultConnectionString = DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null) 
-                                       ?? configuration.GetConnectionString("DefaultConnection")!;
-            _dwhConnectionString = DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null)?
+            _defaultConnectionString = (DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null) 
+                                       ?? configuration.GetConnectionString("DefaultConnection")!)?.Trim('"');
+            _dwhConnectionString = (DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null)?
                                       .Replace("Database=WebHoaTuoiDb", "Database=HoaTuoi_DWH")
                                       .Replace("database=WebHoaTuoiDb", "database=HoaTuoi_DWH") 
-                                   ?? configuration.GetConnectionString("DwhConnection")!;
+                                   ?? configuration.GetConnectionString("DwhConnection")!)?.Trim('"');
         }
 
         public async Task SyncAsync()

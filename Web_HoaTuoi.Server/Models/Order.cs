@@ -5,7 +5,8 @@ public enum OrderStatus
     Placed = 0,             // Đã đặt hàng (thay cho Pending)
     Preparing = 1,          // Đang chuẩn bị (thay cho Processing)
     Delivering = 2,         // Đang giao (thay cho Shipping)
-    Completed = 3           // Hoàn thành
+    Completed = 3,          // Hoàn thành
+    Cancelled = 4           // Đã hủy (giữ lại để tương thích dữ liệu cũ)
 }
 
 public class Order

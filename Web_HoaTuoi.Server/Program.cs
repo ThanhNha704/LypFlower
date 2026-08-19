@@ -25,8 +25,8 @@ catch
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Database ──────────────────────────────────────────────
-var defaultConnStr = DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null) 
-                     ?? builder.Configuration.GetConnectionString("DefaultConnection");
+var defaultConnStr = (DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null) 
+                     ?? builder.Configuration.GetConnectionString("DefaultConnection"))?.Trim('"');
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(defaultConnStr));
 
@@ -117,7 +117,22 @@ builder.Services.AddScoped<IZaloPayService, ZaloPayService>();
 
 builder.Services.AddHostedService<SepayPollingService>();
 
-builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+builder.Services.Configure<EmailSettings>(options =>
+{
+    var section = builder.Configuration.GetSection("EmailSettings");
+    
+    var senderEmail = DotNetEnv.Env.GetString("EmailSettings__SenderEmail", null) ?? section["SenderEmail"];
+    var senderPassword = DotNetEnv.Env.GetString("EmailSettings__SenderPassword", null) ?? section["SenderPassword"];
+    var smtpServer = DotNetEnv.Env.GetString("EmailSettings__SmtpServer", null) ?? section["SmtpServer"];
+    var smtpPortStr = DotNetEnv.Env.GetString("EmailSettings__SmtpPort", null) ?? section["SmtpPort"];
+    var senderName = DotNetEnv.Env.GetString("EmailSettings__SenderName", null) ?? section["SenderName"];
+
+    options.SenderEmail = senderEmail?.Trim('"') ?? string.Empty;
+    options.SenderPassword = senderPassword?.Trim('"') ?? string.Empty;
+    options.SmtpServer = smtpServer?.Trim('"') ?? "smtp.gmail.com";
+    options.SenderName = senderName?.Trim('"') ?? "LypFlower";
+    options.SmtpPort = int.TryParse(smtpPortStr?.Trim('"'), out var port) ? port : 587;
+});
 builder.Services.AddTransient<IEmailSenderService, EmailSenderService>();
 
 builder.Services.AddScoped<Web_HoaTuoi.Server.Services.VectorDbService>();
@@ -217,10 +232,10 @@ using (var scope = app.Services.CreateScope())
             using (var dwhScope = rootServiceProvider.CreateScope())
             {
                 var config = dwhScope.ServiceProvider.GetRequiredService<IConfiguration>();
-                var dwhConnStr = DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null)?
+                var dwhConnStr = (DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null)?
                                     .Replace("Database=WebHoaTuoiDb", "Database=HoaTuoi_DWH")
                                     .Replace("database=WebHoaTuoiDb", "database=HoaTuoi_DWH") 
-                                 ?? config.GetConnectionString("DwhConnection");
+                                 ?? config.GetConnectionString("DwhConnection"))?.Trim('"');
                 if (!string.IsNullOrEmpty(dwhConnStr))
                 {
                     // Tự động khởi tạo database và schema nếu chưa có

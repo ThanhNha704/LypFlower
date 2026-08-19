@@ -110,7 +110,7 @@ export default function ForgotPasswordPage() {
                     
                     {/* Header */}
                     <div className="text-center mb-5 flex flex-col items-center justify-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-400 text-white rounded-xl shadow-lg flex items-center justify-center scale-90 transition-transform">
+                        <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-500 text-white rounded-xl shadow-lg flex items-center justify-center scale-90 transition-transform">
                             <span className="text-xl">🌸</span>
                         </div>
                         <div className="text-center mt-2">
@@ -228,7 +228,7 @@ export default function ForgotPasswordPage() {
                             </div>
                             <button
                                 type="submit"
-                                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl text-sm font-bold shadow-lg shadow-emerald-100 active:scale-[0.98] transition-all disabled:opacity-70 mt-3 flex items-center justify-center gap-2"
+                                className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-sm font-bold shadow-lg shadow-emerald-100 active:scale-[0.98] transition-all disabled:opacity-70 mt-3 flex items-center justify-center gap-2"
                                 disabled={loading}
                             >
                                 {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <span>ĐỔI MẬT KHẨU</span>}

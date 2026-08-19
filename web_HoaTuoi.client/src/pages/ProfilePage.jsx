@@ -345,7 +345,7 @@ export default function ProfilePage() {
             {/* Update Info Modal */}
             {showUpdateModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-[2rem] p-6 md:p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+                    <div className="bg-white rounded-[2rem] p-6 md:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-black text-gray-900">Cập nhật thông tin</h2>
                             <button onClick={() => setShowUpdateModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
@@ -396,7 +396,7 @@ export default function ProfilePage() {
             {/* Change Password Modal */}
             {showPasswordModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-[2rem] p-6 md:p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+                    <div className="bg-white rounded-[2rem] p-6 md:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-black text-gray-900">Đổi mật khẩu</h2>
                             <button onClick={() => setShowPasswordModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
@@ -459,7 +459,7 @@ export default function ProfilePage() {
             {/* Address Modal */}
             {showAddressModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-[2rem] p-6 md:p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+                    <div className="bg-white rounded-[2rem] p-6 md:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-black text-gray-900">Thêm địa chỉ mới</h2>
                             <button onClick={() => setShowAddressModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">

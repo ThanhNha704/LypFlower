@@ -16,12 +16,12 @@ namespace Web_HoaTuoi.Server.Controllers
         public AnalyticsController(IConfiguration configuration, Services.DwhSyncService dwhSync)
         {
             _dwhSync = dwhSync;
-            _dwhConnectionString = DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null)?
+            _dwhConnectionString = (DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null)?
                                       .Replace("Database=WebHoaTuoiDb", "Database=HoaTuoi_DWH")
                                       .Replace("database=WebHoaTuoiDb", "database=HoaTuoi_DWH") 
-                                   ?? configuration.GetConnectionString("DwhConnection")!;
-            _defaultConnectionString = DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null) 
-                                       ?? configuration.GetConnectionString("DefaultConnection")!;
+                                   ?? configuration.GetConnectionString("DwhConnection")!)?.Trim('"');
+            _defaultConnectionString = (DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null) 
+                                       ?? configuration.GetConnectionString("DefaultConnection")!)?.Trim('"');
         }
 
         // Bổ sung endpoint lấy số lượng đơn hàng theo trạng thái phục vụ Dashboard
