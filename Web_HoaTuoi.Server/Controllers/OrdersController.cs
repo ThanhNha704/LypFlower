@@ -312,7 +312,8 @@ public class OrdersController : ControllerBase
         [FromQuery] string? status = null,
         [FromQuery] string? search = null,
         [FromQuery] DateTime? dateFrom = null,
-        [FromQuery] DateTime? dateTo = null)
+        [FromQuery] DateTime? dateTo = null,
+        [FromQuery] string? sortBy = null)
     {
         var query = _db.Orders.AsQueryable();
 
@@ -341,10 +342,27 @@ public class OrdersController : ControllerBase
             query = query.Where(o => o.CreatedAt <= to);
         }
 
+        // Xử lý sắp xếp động
+        if (sortBy == "date_asc")
+        {
+            query = query.OrderBy(o => o.CreatedAt);
+        }
+        else if (sortBy == "amount_desc")
+        {
+            query = query.OrderByDescending(o => o.FinalAmount);
+        }
+        else if (sortBy == "amount_asc")
+        {
+            query = query.OrderBy(o => o.FinalAmount);
+        }
+        else
+        {
+            query = query.OrderByDescending(o => o.CreatedAt); // mặc định date_desc
+        }
+
         var total = await query.CountAsync();
 
         var items = await query
-            .OrderByDescending(o => o.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(o => new
@@ -421,7 +439,68 @@ public class OrdersController : ControllerBase
         if (!Enum.TryParse<OrderStatus>(req.Status, out var newStatus))
             return BadRequest(new { message = "Status không hợp lệ." });
 
+        var isAdmin = User.IsInRole("Admin");
+        var isStaff = User.IsInRole("Staff");
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        // 1. Kiểm tra quyền của Staff
+        if (isStaff && !isAdmin)
+        {
+            if (order.StaffId != userId)
+            {
+                return StatusCode(403, new { message = "Bạn không có quyền thao tác trên đơn hàng này." });
+            }
+        }
+
+        // 2. Chặn thay đổi từ trạng thái cuối
+        if (order.Status == OrderStatus.Completed || order.Status == OrderStatus.Cancelled || order.Status == OrderStatus.Refunded)
+        {
+            return BadRequest(new { message = $"Đơn hàng đã ở trạng thái '{order.Status.ToString()}', không thể thay đổi trạng thái nữa." });
+        }
+
+        // 3. Kiểm tra logic luồng trạng thái 1 chiều
+        if (order.Status == OrderStatus.Pending)
+        {
+            if (newStatus != OrderStatus.Processing && newStatus != OrderStatus.Cancelled)
+            {
+                return BadRequest(new { message = "Từ trạng thái Chờ xác nhận chỉ được chuyển sang Đang chuẩn bị (Processing) hoặc Đã hủy (Cancelled)." });
+            }
+        }
+        else if (order.Status == OrderStatus.Processing)
+        {
+            if (newStatus != OrderStatus.Shipping && newStatus != OrderStatus.Cancelled)
+            {
+                return BadRequest(new { message = "Từ trạng thái Đang chuẩn bị chỉ được chuyển sang Đang giao (Shipping) hoặc Đã hủy (Cancelled)." });
+            }
+        }
+        else if (order.Status == OrderStatus.Shipping)
+        {
+            if (newStatus != OrderStatus.Completed && newStatus != OrderStatus.Cancelled)
+            {
+                return BadRequest(new { message = "Từ trạng thái Đang giao chỉ được chuyển sang Giao thành công (Completed) hoặc Đã hủy (Cancelled)." });
+            }
+        }
+
+        // 4. Ràng buộc cụ thể của Staff
+        if (isStaff && !isAdmin)
+        {
+            if (order.Status == OrderStatus.Processing && newStatus != OrderStatus.Shipping)
+            {
+                return BadRequest(new { message = "Nhân viên giao hàng chỉ có quyền chuyển đơn sang trạng thái Đang giao." });
+            }
+            if (order.Status == OrderStatus.Shipping && newStatus != OrderStatus.Completed && newStatus != OrderStatus.Cancelled)
+            {
+                return BadRequest(new { message = "Nhân viên giao hàng chỉ có quyền hoàn thành hoặc hủy đơn." });
+            }
+        }
+
+        // Thực hiện cập nhật
         order.Status = newStatus;
+        if (newStatus == OrderStatus.Completed && !order.IsPaid)
+        {
+            order.IsPaid = true;
+            order.PaidAt = DateTime.UtcNow;
+        }
 
         await _db.SaveChangesAsync();
 
@@ -499,11 +578,22 @@ public class OrdersController : ControllerBase
         var order = await _db.Orders.FindAsync(id);
         if (order == null) return NotFound();
 
+        // Chặn phân công staff khi đơn đã ở trạng thái cuối
+        if (order.Status == OrderStatus.Completed || order.Status == OrderStatus.Cancelled || order.Status == OrderStatus.Refunded)
+        {
+            return BadRequest("Không thể phân công nhân viên cho đơn hàng đã hoàn tất hoặc đã hủy.");
+        }
+
         var staff = await _userManager.FindByIdAsync(staffId);
         if (staff == null) return BadRequest("Nhân viên không tồn tại.");
 
         order.StaffId = staffId;
-        order.Status = OrderStatus.Processing; // or Keep as is?
+        // Chỉ tự động chuyển sang Processing nếu trạng thái hiện tại là Pending
+        if (order.Status == OrderStatus.Pending)
+        {
+            order.Status = OrderStatus.Processing;
+        }
+        
         await _db.SaveChangesAsync();
 
         await _hubContext.Clients.All.SendAsync("OrderStatusChanged", new { Id = order.Id, Status = order.Status.ToString(), StaffId = staffId });
@@ -542,7 +632,14 @@ public class OrdersController : ControllerBase
                 o.Longitude,
                 o.FinalAmount,
                 o.IsPaid,
-                o.CreatedAt
+                o.CreatedAt,
+                Items = o.Items.Select(i => new
+                {
+                    i.ProductName,
+                    ProductImage = i.ProductImage ?? "",
+                    i.Quantity,
+                    i.UnitPrice
+                })
             })
             .ToListAsync();
 

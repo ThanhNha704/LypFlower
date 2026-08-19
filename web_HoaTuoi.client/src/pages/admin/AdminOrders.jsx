@@ -29,6 +29,7 @@ export default function AdminOrders() {
   const [detail, setDetail] = useState(null);
   const [staffMembers, setStaffMembers] = useState([]);
   const [invoiceToPrint, setInvoiceToPrint] = useState(null);
+  const [sortBy, setSortBy] = useState('date_desc');
   const PAGE_SIZE = 15;
 
   const fetchOrders = () => {
@@ -37,6 +38,7 @@ export default function AdminOrders() {
     if (search) url += `&search=${search}`;
     if (dateFrom) url += `&dateFrom=${dateFrom}`;
     if (dateTo) url += `&dateTo=${dateTo}`;
+    if (sortBy) url += `&sortBy=${sortBy}`;
     apiClient.get(url)
       .then(r => { 
         setOrders(r.data.items ?? []); 
@@ -97,7 +99,7 @@ export default function AdminOrders() {
         isMounted = false;
         connection.stop();
     };
-  }, [page, statusFilter, search, dateFrom, dateTo]);
+  }, [page, statusFilter, search, dateFrom, dateTo, sortBy]);
 
   async function updateStatus(orderId, status) {
     try {
@@ -208,10 +210,23 @@ export default function AdminOrders() {
             className="input text-sm py-1.5 px-3 border-gray-200 rounded-xl focus:ring-amber-500/20 bg-white"
           />
         </div>
+        <div className="flex items-center gap-2 md:ml-auto">
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Sắp xếp:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
+            className="input text-xs w-44 font-bold py-1.5 px-3 bg-white border border-gray-200 rounded-xl focus:border-amber-500 focus:ring-0 cursor-pointer"
+          >
+            <option value="date_desc">↓ Mới nhất</option>
+            <option value="date_asc">↑ Cũ nhất</option>
+            <option value="amount_desc">↓ Tổng tiền giảm dần</option>
+            <option value="amount_asc">↑ Tổng tiền tăng dần</option>
+          </select>
+        </div>
         {(dateFrom || dateTo) && (
           <button 
             onClick={() => { setDateFrom(''); setDateTo(''); setPage(1); }}
-            className="text-xs font-bold text-red-500 hover:text-red-600 transition-colors uppercase tracking-wider ml-auto"
+            className="text-xs font-bold text-red-500 hover:text-red-600 transition-colors uppercase tracking-wider"
           >
             Xóa bộ lọc ngày
           </button>
@@ -268,11 +283,34 @@ export default function AdminOrders() {
             <span className="text-xs text-gray-400"></span>
           )}
           
-          <select value={o.status} onChange={e => updateStatus(o.id, e.target.value)}
-            className="text-xs font-medium px-2 py-1.5 rounded-lg border border-gray-200 cursor-pointer text-gray-600 focus:ring-amber-500 hover:border-gray-300 bg-white">
-            {Object.entries(STATUS_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
-            ))}
+          <select 
+            value={o.status} 
+            onChange={e => updateStatus(o.id, e.target.value)}
+            disabled={o.status === 'Completed' || o.status === 'Cancelled' || o.status === 'Refunded'}
+            className="text-xs font-medium px-2 py-1.5 rounded-lg border border-gray-200 cursor-pointer text-gray-600 focus:ring-amber-500 hover:border-gray-300 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <option value={o.status}>{STATUS_LABELS[o.status]?.label ?? o.status}</option>
+            {o.status === 'Pending' && (
+              <>
+                <option value="Processing">Đang xử lý</option>
+                <option value="Cancelled">Đã hủy</option>
+              </>
+            )}
+            {o.status === 'Processing' && (
+              <>
+                <option value="Shipping">Đang giao</option>
+                <option value="Cancelled">Đã hủy</option>
+              </>
+            )}
+            {o.status === 'Shipping' && (
+              <>
+                <option value="Completed">Hoàn thành</option>
+                <option value="Cancelled">Đã hủy</option>
+              </>
+            )}
+            {(o.status === 'Completed' || o.status === 'Cancelled') && (
+              <option value="Refunded">Đã hoàn tiền</option>
+            )}
           </select>
           
           <button 

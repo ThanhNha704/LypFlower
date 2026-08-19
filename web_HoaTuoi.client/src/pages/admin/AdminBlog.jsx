@@ -1,4 +1,4 @@
-﻿// src/pages/admin/AdminBlog.jsx
+// src/pages/admin/AdminBlog.jsx
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Upload, X, ImageIcon } from 'lucide-react';
 import apiClient from '../../api/client';
@@ -26,14 +26,15 @@ export default function AdminBlog() {
   const [loading, setLoading] = useState(false);
   const [typeFilter, setTypeFilter] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [sortBy, setSortBy] = useState('date_desc');
 
   const fetchPosts = () => {
-    apiClient.get(`/blog${typeFilter !== '' ? `?type=${typeFilter}` : ''}`)
+    apiClient.get(`/blog?${typeFilter !== '' ? `type=${typeFilter}&` : ''}sortBy=${sortBy}`)
       .then(r => setPosts(r.data.items ?? r.data ?? []))
       .catch(() => {});
   };
 
-  useEffect(() => { fetchPosts(); }, [typeFilter]); // eslint-disable-line
+  useEffect(() => { fetchPosts(); }, [typeFilter, sortBy]);
 
   function openCreate() {
     setForm(EMPTY_FORM);
@@ -129,13 +130,25 @@ export default function AdminBlog() {
         </button>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
-        {TYPE_FILTER_OPTIONS.map(([k, l]) => (
-          <button key={k} onClick={() => setTypeFilter(k)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${typeFilter === k ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-            {l}
-          </button>
-        ))}
+      <div className="flex flex-col sm:flex-row justify-between gap-3 items-start sm:items-center">
+        <div className="flex gap-2 flex-wrap">
+          {TYPE_FILTER_OPTIONS.map(([k, l]) => (
+            <button key={k} onClick={() => setTypeFilter(k)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${typeFilter === k ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              {l}
+            </button>
+          ))}
+        </div>
+        <select
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value)}
+          className="input text-xs w-44 font-bold py-2 px-3 bg-white border border-gray-200 rounded-xl focus:border-amber-500 focus:ring-0 cursor-pointer"
+        >
+          <option value="date_desc">↓ Mới nhất</option>
+          <option value="date_asc">↑ Cũ nhất</option>
+          <option value="title_asc">↑ Tiêu đề A-Z</option>
+          <option value="title_desc">↓ Tiêu đề Z-A</option>
+        </select>
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">

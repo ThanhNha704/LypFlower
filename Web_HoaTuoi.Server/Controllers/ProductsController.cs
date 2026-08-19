@@ -576,6 +576,7 @@ public class ProductsController : ControllerBase
     public async Task<ActionResult<object>> GetProductsForAdmin(
         [FromQuery] string? q,
         [FromQuery] string? statusFilter, // "active" | "hidden" | "out_of_stock"
+        [FromQuery] string? sortBy,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10)
     {
@@ -597,8 +598,25 @@ public class ProductsController : ControllerBase
             _ => query
         };
 
-        query = query.OrderBy(p => p.IsActive ? (p.Stock > 0 ? 0 : 1) : 2)
-                     .ThenByDescending(p => p.CreatedAt);
+        if (!string.IsNullOrEmpty(sortBy))
+        {
+            query = sortBy switch
+            {
+                "price_asc" => query.OrderBy(p => p.Price),
+                "price_desc" => query.OrderByDescending(p => p.Price),
+                "sold_desc" => query.OrderByDescending(p => p.SoldCount),
+                "name_asc" => query.OrderBy(p => p.Name),
+                "stock_asc" => query.OrderBy(p => p.Stock),
+                "stock_desc" => query.OrderByDescending(p => p.Stock),
+                "date_asc" => query.OrderBy(p => p.CreatedAt),
+                _ => query.OrderByDescending(p => p.CreatedAt) // date_desc
+            };
+        }
+        else
+        {
+            query = query.OrderBy(p => p.IsActive ? (p.Stock > 0 ? 0 : 1) : 2)
+                         .ThenByDescending(p => p.CreatedAt);
+        }
 
         var total = await query.CountAsync();
         var items = await query

@@ -66,12 +66,30 @@ public class ReviewsController : ControllerBase
             existingReview.Comment = req.Comment;
             existingReview.CreatedAt = DateTime.UtcNow; // Cập nhật thời gian sửa
 
+            // Xóa các file ảnh cũ trên ổ đĩa vật lý
+            var env = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
+            foreach (var img in existingReview.Images)
+            {
+                if (!string.IsNullOrEmpty(img.Url) && img.Url.StartsWith("/uploads/reviews/"))
+                {
+                    try
+                    {
+                        var relativePath = img.Url.TrimStart('/');
+                        var fullPath = Path.Combine(env.WebRootPath, relativePath);
+                        if (System.IO.File.Exists(fullPath))
+                        {
+                            System.IO.File.Delete(fullPath);
+                        }
+                    }
+                    catch { }
+                }
+            }
+
             _db.ReviewImages.RemoveRange(existingReview.Images);
             existingReview.Images.Clear();
 
             if (req.ImageBase64List != null && req.ImageBase64List.Any())
             {
-                var env = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
                 var uploadsFolder = Path.Combine(env.WebRootPath, "uploads", "reviews");
                 if (!Directory.Exists(uploadsFolder))
                 {
@@ -184,13 +202,32 @@ public class ReviewsController : ControllerBase
     public async Task<ActionResult> GetAllReviews(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 15,
-        [FromQuery] bool? approved = null)
+        [FromQuery] bool? approved = null,
+        [FromQuery] int? rating = null,
+        [FromQuery] bool? hasReply = null)
     {
         var query = _db.Reviews.Include(r => r.User).Include(r => r.Images).AsQueryable();
 
         if (approved.HasValue)
         {
             query = query.Where(r => r.IsApproved == approved.Value);
+        }
+
+        if (rating.HasValue)
+        {
+            query = query.Where(r => r.Rating == rating.Value);
+        }
+
+        if (hasReply.HasValue)
+        {
+            if (hasReply.Value)
+            {
+                query = query.Where(r => r.AdminReply != null && r.AdminReply != "");
+            }
+            else
+            {
+                query = query.Where(r => r.AdminReply == null || r.AdminReply == "");
+            }
         }
 
         var total = await query.CountAsync();
@@ -260,8 +297,29 @@ public class ReviewsController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult> DeleteReview(int id)
     {
-        var review = await _db.Reviews.FindAsync(id);
+        var review = await _db.Reviews
+            .Include(r => r.Images)
+            .FirstOrDefaultAsync(r => r.Id == id);
         if (review == null) return NotFound();
+
+        // Xóa các file ảnh vật lý
+        var env = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
+        foreach (var img in review.Images)
+        {
+            if (!string.IsNullOrEmpty(img.Url) && img.Url.StartsWith("/uploads/reviews/"))
+            {
+                try
+                {
+                    var relativePath = img.Url.TrimStart('/');
+                    var fullPath = Path.Combine(env.WebRootPath, relativePath);
+                    if (System.IO.File.Exists(fullPath))
+                    {
+                        System.IO.File.Delete(fullPath);
+                    }
+                }
+                catch { }
+            }
+        }
 
         _db.Reviews.Remove(review);
         await _db.SaveChangesAsync();

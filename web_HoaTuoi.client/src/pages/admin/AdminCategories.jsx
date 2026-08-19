@@ -22,6 +22,7 @@ function slugify(text) {
 export default function AdminCategories() {
   const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('sortOrder_asc'); // sortOrder_asc | name_asc | name_desc | productCount_desc | productCount_asc
   const [modal, setModal] = useState(null); // null | 'edit'
   const [form, setForm] = useState(EMPTY_FORM);
   const [editId, setEditId] = useState(null);
@@ -48,6 +49,14 @@ export default function AdminCategories() {
   useEffect(() => { fetchCategories(); }, []);
 
   const filteredCategories = categories.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
+
+  const sortedCategories = [...filteredCategories].sort((a, b) => {
+    if (sortBy === 'name_asc') return a.name.localeCompare(b.name, 'vi');
+    if (sortBy === 'name_desc') return b.name.localeCompare(a.name, 'vi');
+    if (sortBy === 'productCount_desc') return (b.productCount ?? 0) - (a.productCount ?? 0);
+    if (sortBy === 'productCount_asc') return (a.productCount ?? 0) - (b.productCount ?? 0);
+    return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+  });
 
   function openCreate() { setForm(EMPTY_FORM); setEditId(null); setImageTab('upload'); setModal('edit'); }
   function openEdit(c) {
@@ -134,13 +143,26 @@ export default function AdminCategories() {
         </button>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input 
-          value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Tìm kiếm danh mục..." 
-          className="input pl-9 text-sm focus:ring-amber-500/20" 
-        />
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+        <div className="relative max-w-sm flex-1">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input 
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Tìm kiếm danh mục..." 
+            className="input pl-9 text-sm focus:ring-amber-500/20" 
+          />
+        </div>
+        <select
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value)}
+          className="input text-xs w-48 font-bold py-2.5 px-3 bg-white border border-gray-200 rounded-xl focus:border-amber-500 focus:ring-0 cursor-pointer"
+        >
+          <option value="sortOrder_asc">Thứ tự mặc định</option>
+          <option value="name_asc">↑ Tên danh mục A-Z</option>
+          <option value="name_desc">↓ Tên danh mục Z-A</option>
+          <option value="productCount_desc">↓ Nhiều sản phẩm nhất</option>
+          <option value="productCount_asc">↑ Ít sản phẩm nhất</option>
+        </select>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
@@ -157,7 +179,7 @@ export default function AdminCategories() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filteredCategories.map(c => (
+              {sortedCategories.map(c => (
                 <tr key={c.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-5 py-3">
                     {c.imageUrl ? (
@@ -194,7 +216,7 @@ export default function AdminCategories() {
                   </td>
                 </tr>
               ))}
-              {filteredCategories.length === 0 && (
+              {sortedCategories.length === 0 && (
                 <tr>
                   <td colSpan={6} className="text-center py-16 text-gray-400">
                     <div className="flex flex-col items-center">

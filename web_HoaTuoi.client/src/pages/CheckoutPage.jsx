@@ -598,7 +598,7 @@ export default function CheckoutPage() {
                       <MapPin size={16} className="text-amber-600 shrink-0" />
                       <div>
                         <p className="text-[9px] font-bold text-amber-800 uppercase tracking-widest mb-0.5">Nhận tại cửa hàng:</p>
-                        <p className="text-xs text-gray-700 font-medium font-mono">613 Âu Cơ, Tân Phú, Hồ Chí Minh 700000, Việt Nam</p>
+                        <p className="text-xs text-gray-700 font-medium font-mono">9A Đường Thạnh Xuân 13, Quận 12, Hồ Chí Minh 700000, Việt Nam</p>
                       </div>
                     </div>
                   )}

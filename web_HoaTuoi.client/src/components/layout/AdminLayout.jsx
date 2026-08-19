@@ -33,7 +33,6 @@ const adminNav = [
     { to: "/admin/danh-gia", label: "Đánh giá", icon: Star },
     { to: "/admin/blog", label: "Tin tức & Blog", icon: FileText },
     { to: "/admin/khuyen-mai", label: "Khuyến mãi", icon: Ticket },
-    { to: "/admin/van-chuyen", label: "Vận chuyển", icon: Truck },
     { to: "/admin/ai-chat", label: "Quản lý Lyp AI", icon: Bot },
     { to: "/admin/cai-dat", label: "Cài đặt hệ thống", icon: Settings },
     { to: "/admin/bao-cao", label: "Báo cáo thống kê", icon: BarChart3 }

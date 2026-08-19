@@ -53,14 +53,35 @@ public class BlogController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<object>> GetAll([FromQuery] int? type, [FromQuery] int page = 1, [FromQuery] int pageSize = 100)
+    public async Task<ActionResult<object>> GetAll(
+        [FromQuery] int? type, 
+        [FromQuery] int page = 1, 
+        [FromQuery] int pageSize = 100,
+        [FromQuery] string? sortBy = null)
     {
         var query = _db.BlogPosts.AsQueryable();
         if (type.HasValue) query = query.Where(b => b.Type == type.Value);
 
+        // Xử lý sắp xếp
+        if (sortBy == "date_asc")
+        {
+            query = query.OrderBy(b => b.CreatedAt);
+        }
+        else if (sortBy == "title_asc")
+        {
+            query = query.OrderBy(b => b.Title);
+        }
+        else if (sortBy == "title_desc")
+        {
+            query = query.OrderByDescending(b => b.Title);
+        }
+        else
+        {
+            query = query.OrderByDescending(b => b.CreatedAt); // mặc định date_desc
+        }
+
         var total = await query.CountAsync();
         var items = await query
-            .OrderByDescending(b => b.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(b => new BlogPostDto(b.Id, b.Title, b.Slug, b.Summary, b.ImageUrl, b.CreatedAt, b.Type, b.IsPublished))
@@ -104,6 +125,16 @@ public class BlogController : ControllerBase
         var post = await _db.BlogPosts.FindAsync(id);
         if (post is null) return NotFound();
 
+        // Xóa ảnh bìa cũ trên Cloudinary nếu thay đổi ảnh mới
+        if (!string.IsNullOrEmpty(post.ImageUrl) && post.ImageUrl != dto.CoverImageUrl)
+        {
+            var oldPublicId = _cloudinary.ExtractPublicId(post.ImageUrl);
+            if (!string.IsNullOrEmpty(oldPublicId))
+            {
+                _ = Task.Run(() => _cloudinary.DeleteAsync(oldPublicId));
+            }
+        }
+
         post.Title = dto.Title;
         post.Slug = dto.Slug;
         post.Summary = dto.Excerpt;
@@ -122,6 +153,17 @@ public class BlogController : ControllerBase
     {
         var post = await _db.BlogPosts.FindAsync(id);
         if (post is null) return NotFound();
+
+        // Xóa ảnh trên Cloudinary
+        if (!string.IsNullOrEmpty(post.ImageUrl))
+        {
+            var oldPublicId = _cloudinary.ExtractPublicId(post.ImageUrl);
+            if (!string.IsNullOrEmpty(oldPublicId))
+            {
+                _ = Task.Run(() => _cloudinary.DeleteAsync(oldPublicId));
+            }
+        }
+
         _db.BlogPosts.Remove(post);
         await _db.SaveChangesAsync();
         return Ok();

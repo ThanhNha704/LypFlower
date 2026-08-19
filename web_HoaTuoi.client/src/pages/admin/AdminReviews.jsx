@@ -17,19 +17,23 @@ export default function AdminReviews() {
   const [filter, setFilter] = useState(''); // default to all (Tất cả)
   const [replyId, setReplyId] = useState(null);
   const [replyText, setReplyText] = useState('');
+  const [ratingFilter, setRatingFilter] = useState('');
+  const [replyFilter, setReplyFilter] = useState('');
   const PAGE_SIZE = 15;
 
   const fetchReviews = () => {
     let url = `/reviews?page=${page}&pageSize=${PAGE_SIZE}`;
     if (filter === 'pending') url += '&approved=false';
     if (filter === 'approved') url += '&approved=true';
+    if (ratingFilter) url += `&rating=${ratingFilter}`;
+    if (replyFilter) url += `&hasReply=${replyFilter}`;
 
     apiClient.get(url)
       .then(r => { setReviews(r.data.items ?? []); setTotal(r.data.total ?? 0); })
       .catch(() => toast.error('Lỗi tải đánh giá'));
   };
 
-  useEffect(() => { fetchReviews(); }, [page, filter]);
+  useEffect(() => { fetchReviews(); }, [page, filter, ratingFilter, replyFilter]);
 
   async function approveAction(id) {
     try {
@@ -74,14 +78,39 @@ export default function AdminReviews() {
         <p className="text-sm text-gray-400">{total} đánh giá</p>
       </div>
 
-      <div className="flex gap-2 border-b border-gray-100 pb-2">
-        {TABS.map(t => (
-          <button key={t.value} onClick={() => { setFilter(t.value); setPage(1); }}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all
-              ${filter === t.value ? 'bg-amber-100 text-amber-700 shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}>
-            {t.label}
-          </button>
-        ))}
+      <div className="flex flex-col sm:flex-row justify-between gap-3 items-start sm:items-center border-b border-gray-100 pb-3">
+        <div className="flex gap-2">
+          {TABS.map(t => (
+            <button key={t.value} onClick={() => { setFilter(t.value); setPage(1); }}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all
+                ${filter === t.value ? 'bg-amber-100 text-amber-700 shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2 items-center w-full sm:w-auto">
+          <select
+            value={ratingFilter}
+            onChange={e => { setRatingFilter(e.target.value); setPage(1); }}
+            className="input text-xs w-32 font-bold py-2 px-3 bg-white border border-gray-200 rounded-xl focus:border-amber-500 focus:ring-0 cursor-pointer"
+          >
+            <option value="">Tất cả sao</option>
+            <option value="5">5 sao</option>
+            <option value="4">4 sao</option>
+            <option value="3">3 sao</option>
+            <option value="2">2 sao</option>
+            <option value="1">1 sao</option>
+          </select>
+          <select
+            value={replyFilter}
+            onChange={e => { setReplyFilter(e.target.value); setPage(1); }}
+            className="input text-xs w-40 font-bold py-2 px-3 bg-white border border-gray-200 rounded-xl focus:border-amber-500 focus:ring-0 cursor-pointer"
+          >
+            <option value="">Tất cả phản hồi</option>
+            <option value="false">Chưa trả lời</option>
+            <option value="true">Đã trả lời</option>
+          </select>
+        </div>
       </div>
 
       <div className="space-y-4">

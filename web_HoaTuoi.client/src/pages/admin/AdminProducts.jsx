@@ -40,6 +40,7 @@ export default function AdminProducts() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('date_desc'); // date_desc | date_asc | price_asc | price_desc | sold_desc | stock_asc | stock_desc | name_asc
   const [modal, setModal] = useState(null); // null | 'edit'
   const [form, setForm] = useState(EMPTY_FORM);
   const [editId, setEditId] = useState(null);
@@ -76,7 +77,7 @@ export default function AdminProducts() {
 
   // ── Fetch sản phẩm ────────────────────────────────────
   const fetchProducts = () => {
-    apiClient.get(`/products/admin-list?page=${page}&pageSize=${PAGE_SIZE}&statusFilter=${statusFilter}${search ? `&q=${search}` : ''}`)
+    apiClient.get(`/products/admin-list?page=${page}&pageSize=${PAGE_SIZE}&statusFilter=${statusFilter}&sortBy=${sortBy}${search ? `&q=${search}` : ''}`)
       .then(r => { 
         setProducts(r.data.items ?? []); 
         setTotal(r.data.total ?? 0); 
@@ -98,7 +99,7 @@ export default function AdminProducts() {
       .catch(() => {});
   };
 
-  useEffect(() => { fetchProducts(); }, [page, search, statusFilter]);
+  useEffect(() => { fetchProducts(); }, [page, search, statusFilter, sortBy]);
   useEffect(() => { if (activeTab === 'imports') fetchImports(); }, [activeTab, importPage]);
   
   useEffect(() => {
@@ -163,37 +164,61 @@ export default function AdminProducts() {
     }
   }
 
-  // Upload/Thêm ảnh phụ
+  // Upload/Thêm nhiều ảnh phụ cùng lúc
   async function handleSubImageUpload(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
 
-    const formData = new FormData();
-    formData.append('file', file);
+    const currentCount = subImages.length + pendingSubImages.length;
+    if (currentCount >= 5) {
+      return toast.error('Đã đạt giới hạn tối đa 5 ảnh phụ.');
+    }
+
+    // Chỉ lấy đủ số lượng ảnh phụ còn thiếu
+    const allowedFiles = files.slice(0, 5 - currentCount);
+    if (files.length > allowedFiles.length) {
+      toast.error(`Chỉ có thể chọn thêm tối đa ${allowedFiles.length} ảnh phụ.`);
+    }
 
     setUploadingSub(true);
     try {
-      const res = await apiClient.post('/products/upload-image', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const uploadPromises = allowedFiles.map(async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await apiClient.post('/products/upload-image', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return res.data.url;
       });
 
+      const urls = await Promise.all(uploadPromises);
+
       if (editId) {
-        // Khi sửa sản phẩm: lưu thẳng lên backend
-        const addRes = await apiClient.post(`/products/${editId}/images`, {
-          imageUrl: res.data.url,
-          displayOrder: subImages.length + 1
+        // Khi sửa sản phẩm: lưu thẳng lên backend từng ảnh
+        const savePromises = urls.map(async (url, idx) => {
+          const addRes = await apiClient.post(`/products/${editId}/images`, {
+            imageUrl: url,
+            displayOrder: subImages.length + idx + 1
+          });
+          return addRes.data;
         });
-        setSubImages(prev => [...prev, addRes.data]);
-        toast.success('Thêm ảnh phụ thành công!');
+        const savedImages = await Promise.all(savePromises);
+        setSubImages(prev => [...prev, ...savedImages]);
+        toast.success(`Đã thêm thành công ${urls.length} ảnh phụ!`);
       } else {
-        // Khi tạo mới: lưu tạm vào state, sẽ gán vào sản phẩm sau khi tạo xong
-        setPendingSubImages(prev => [...prev, { tempId: Date.now(), imageUrl: res.data.url }]);
-        toast.success('Đã thêm ảnh vào hàng chờ!');
+        // Khi tạo mới: lưu tạm vào pendingSubImages
+        const newPending = urls.map((url, idx) => ({
+          tempId: Date.now() + idx,
+          imageUrl: url
+        }));
+        setPendingSubImages(prev => [...prev, ...newPending]);
+        toast.success(`Đã thêm ${urls.length} ảnh phụ vào hàng chờ!`);
       }
     } catch {
       toast.error('Lỗi khi thêm ảnh phụ');
     } finally {
       setUploadingSub(false);
+      e.target.value = '';
     }
   }
 
@@ -379,11 +404,27 @@ export default function AdminProducts() {
               ))}
             </div>
 
-            {/* Search */}
-            <div className="relative max-w-sm w-full md:w-64">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-                placeholder="Tìm sản phẩm..." className="input pl-9 text-sm" />
+            {/* Search & Sort */}
+            <div className="flex items-center gap-2 max-w-md w-full md:w-auto">
+              <div className="relative flex-grow md:w-56">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+                  placeholder="Tìm sản phẩm..." className="input pl-9 text-sm" />
+              </div>
+              <select
+                value={sortBy}
+                onChange={e => { setSortBy(e.target.value); setPage(1); }}
+                className="input text-xs w-36 font-bold py-2.5 px-3 bg-white border border-gray-200 rounded-xl focus:border-amber-500 focus:ring-0 cursor-pointer"
+              >
+                <option value="date_desc">↓ Mới nhất</option>
+                <option value="date_asc">↑ Cũ nhất</option>
+                <option value="price_asc">↑ Giá tăng dần</option>
+                <option value="price_desc">↓ Giá giảm dần</option>
+                <option value="sold_desc">↓ Bán chạy nhất</option>
+                <option value="stock_asc">↑ Tồn kho ít nhất</option>
+                <option value="stock_desc">↓ Tồn kho nhiều nhất</option>
+                <option value="name_asc">↑ Tên A-Z</option>
+              </select>
             </div>
           </div>
 
@@ -757,7 +798,7 @@ export default function AdminProducts() {
                       <label className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-200 hover:border-pink-300 bg-gray-50/20 hover:bg-pink-50/10 flex flex-col items-center justify-center cursor-pointer transition-all">
                         <Plus size={18} className="text-gray-400" />
                         <span className="text-[8px] font-bold text-gray-400 mt-0.5">Thêm ảnh</span>
-                        <input type="file" accept="image/*" className="hidden" onChange={handleSubImageUpload} disabled={uploadingSub} />
+                        <input type="file" accept="image/*" multiple className="hidden" onChange={handleSubImageUpload} disabled={uploadingSub} />
                       </label>
                     )}
                   </div>
