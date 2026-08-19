@@ -67,6 +67,7 @@ export default function ProductCard({ product }) {
 
     const isDiscontinued = isActive === false;
     const isOutOfStock = stock === 0 && !isDiscontinued;
+    const isAdminOrStaff = user && (user.role === 'Admin' || user.role === 'Staff');
 
     return (
         <Link to={`/hoa/${slug}`} className={`group block text-center space-y-3 bg-white dark:bg-[#1a1a1a] p-2 rounded-2xl border dark:border-slate-800 transition-colors ${isDiscontinued ? 'opacity-70' : ''}`}>
@@ -136,6 +137,13 @@ export default function ProductCard({ product }) {
                             className="w-full py-2 bg-amber-50 dark:bg-amber-950/20 text-amber-500 dark:text-amber-600 text-[11px] font-bold rounded-lg cursor-not-allowed uppercase tracking-widest"
                         >
                             Tạm hết hàng
+                        </button>
+                    ) : isAdminOrStaff ? (
+                        <button
+                            disabled
+                            className="w-full py-2 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 text-[11px] font-bold rounded-lg cursor-not-allowed uppercase tracking-widest"
+                        >
+                            Dành cho KH
                         </button>
                     ) : (
                         <button

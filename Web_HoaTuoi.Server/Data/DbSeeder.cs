@@ -104,6 +104,40 @@ public static class DbSeeder
             await db.SaveChangesAsync();
         }
 
+        // ── 5. Blog Posts ──────────────────────────────
+        var adminForBlog = await userManager.FindByEmailAsync("admin@hoatuoi.vn");
+        if (adminForBlog != null && await db.BlogPosts.CountAsync() < 2)
+        {
+            var blogPosts = new List<BlogPost>
+            {
+                new BlogPost { Title = "Bí quyết chăm sóc và giữ hoa tươi lâu", Slug = "bi-quyet-cham-soc-va-giu-hoa-tuoi-lau", Summary = "Làm sao để bó hoa của bạn luôn tươi tắn sau nhiều ngày? Hãy cùng khám phá những mẹo nhỏ cực kỳ hữu ích...", Content = "<p>Nội dung bài viết chi tiết về bí quyết chăm sóc hoa, cắt tỉa cành, thay nước đúng cách giúp kéo dài tuổi thọ của hoa.</p>", ImageUrl = "/hoatulip/tl1.jpg", AuthorId = adminForBlog.Id, IsPublished = true, Type = 0, CreatedAt = DateTime.UtcNow.AddDays(-1) },
+                new BlogPost { Title = "Khám phá các loài hoa độc đáo và quý hiếm trên thế giới", Slug = "kham-pha-cac-loai-hoa-doc-dao", Summary = "Thế giới tự nhiên luôn ẩn chứa những điều kỳ diệu. Hãy cùng điểm qua những loài hoa quý hiếm nhất hành tinh.", Content = "<p>Nội dung bài viết giới thiệu về các loài hoa quý hiếm, nguồn gốc và ý nghĩa đặc biệt của chúng trong tự nhiên.</p>", ImageUrl = "/hoahong/hh1.jpg", AuthorId = adminForBlog.Id, IsPublished = true, Type = 0, CreatedAt = DateTime.UtcNow.AddDays(-2) },
+                new BlogPost { Title = "Xu hướng hoa và nghệ thuật cắm hoa hiện đại", Slug = "xu-huong-hoa-va-nghe-thuat-cam-hoa", Summary = "Nghệ thuật cắm hoa không ngừng đổi mới. Cập nhật ngay những phong cách cắm hoa đang được ưa chuộng nhất năm nay.", Content = "<p>Khám phá các xu hướng cắm hoa hiện đại, từ phong cách tối giản đến phối màu phá cách, giúp không gian sống thêm sinh động.</p>", ImageUrl = "/hoacamtucau/ctc1.jpg", AuthorId = adminForBlog.Id, IsPublished = true, Type = 0, CreatedAt = DateTime.UtcNow.AddDays(-3) },
+                new BlogPost { Title = "Ý nghĩa của các loài hoa phổ biến", Slug = "y-nghia-cua-cac-loai-hoa-pho-bien", Summary = "Mỗi loài hoa mang một thông điệp riêng. Hiểu rõ ý nghĩa giúp bạn trao gửi thông điệp trọn vẹn hơn đến người nhận.", Content = "<p>Giải mã ngôn ngữ các loài hoa phổ biến như hoa hồng, hoa hướng dương, cẩm tú cầu để chọn quà tặng phù hợp cho từng dịp.</p>", ImageUrl = "/lan/l1.jpg", AuthorId = adminForBlog.Id, IsPublished = true, Type = 0, CreatedAt = DateTime.UtcNow.AddDays(-4) },
+                new BlogPost { Title = "Những mùa hoa đẹp nhất trong năm", Slug = "nhung-mua-hoa-dep-nhat-trong-nam", Summary = "Xuân hạ thu đông, mỗi mùa đều có những loài hoa đặc trưng khoe sắc. Cùng chiêm ngưỡng vẻ đẹp các mùa hoa.", Content = "<p>Hành trình khám phá vẻ đẹp của các loài hoa nở rộ theo từng mùa trong năm, từ hoa đào mùa xuân đến cúc họa mi mùa đông.</p>", ImageUrl = "/hoahuongduong/hhd1.jpg", AuthorId = adminForBlog.Id, IsPublished = true, Type = 0, CreatedAt = DateTime.UtcNow.AddDays(-5) }
+            };
+            db.BlogPosts.AddRange(blogPosts);
+            await db.SaveChangesAsync();
+        }
+        else if (adminForBlog != null)
+        {
+            var blogsToUpdate = await db.BlogPosts.Where(b => !b.Content.Contains("<img")).ToListAsync();
+            foreach (var b in blogsToUpdate)
+            {
+                if (b.Slug.Contains("bi-quyet-cham-soc"))
+                    b.Content = "<p>Nội dung bài viết chi tiết về bí quyết chăm sóc hoa, cắt tỉa cành, thay nước đúng cách giúp kéo dài tuổi thọ của hoa.</p><br/><img src=\"/hoatulip/tl1.jpg\" style=\"width:100%; max-width:600px; border-radius:12px; margin: 10px auto; display:block;\"/><br/><p>Hơn nữa, bạn cần để hoa ở nơi thoáng mát...</p>";
+                else if (b.Slug.Contains("kham-pha-cac-loai-hoa-doc-dao"))
+                    b.Content = "<p>Nội dung bài viết giới thiệu về các loài hoa quý hiếm, nguồn gốc và ý nghĩa đặc biệt của chúng trong tự nhiên.</p><br/><img src=\"/hoahong/hh1.jpg\" style=\"width:100%; max-width:600px; border-radius:12px; margin: 10px auto; display:block;\"/><br/><p>Hoa luôn là món quà tuyệt vời từ thiên nhiên...</p>";
+                else if (b.Slug.Contains("xu-huong-hoa-va-nghe-thuat"))
+                    b.Content = "<p>Khám phá các xu hướng cắm hoa hiện đại, từ phong cách tối giản đến phối màu phá cách, giúp không gian sống thêm sinh động.</p><br/><img src=\"/hoacamtucau/ctc1.jpg\" style=\"width:100%; max-width:600px; border-radius:12px; margin: 10px auto; display:block;\"/><br/><p>Nghệ thuật cắm hoa là một cách để thư giãn...</p>";
+                else if (b.Slug.Contains("y-nghia-cua-cac-loai-hoa"))
+                    b.Content = "<p>Giải mã ngôn ngữ các loài hoa phổ biến như hoa hồng, hoa hướng dương, cẩm tú cầu để chọn quà tặng phù hợp cho từng dịp.</p><br/><img src=\"/lan/l1.jpg\" style=\"width:100%; max-width:600px; border-radius:12px; margin: 10px auto; display:block;\"/><br/><p>Ví dụ hoa lan tượng trưng cho sự sang trọng...</p>";
+                else if (b.Slug.Contains("nhung-mua-hoa-dep-nhat"))
+                    b.Content = "<p>Hành trình khám phá vẻ đẹp của các loài hoa nở rộ theo từng mùa trong năm, từ hoa đào mùa xuân đến cúc họa mi mùa đông.</p><br/><img src=\"/hoahuongduong/hhd1.jpg\" style=\"width:100%; max-width:600px; border-radius:12px; margin: 10px auto; display:block;\"/><br/><p>Mùa hè là lúc hoa hướng dương khoe sắc rực rỡ nhất...</p>";
+            }
+            if (blogsToUpdate.Any()) { await db.SaveChangesAsync(); }
+        }
+
         // Chỉ seed nếu chưa có sản phẩm nào
         if (await db.Products.AnyAsync()) 
         {
@@ -201,6 +235,8 @@ public static class DbSeeder
 
         db.Products.AddRange(products);
         await db.SaveChangesAsync();
+
+
     }
 
     public static async Task SeedFromSqlFileAsync(AppDbContext db, string sqlPath)

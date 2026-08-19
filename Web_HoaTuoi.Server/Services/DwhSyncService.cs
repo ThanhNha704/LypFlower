@@ -51,7 +51,25 @@ namespace Web_HoaTuoi.Server.Services
             // 2. Connect to DWH (analytical database)
             using var dwhConn = new SqlConnection(_dwhConnectionString);
             await dwhConn.OpenAsync();
-            Console.WriteLine("[DWH Sync] Connected to DWH database. Clearing old DWH tables...");
+            Console.WriteLine("[DWH Sync] Connected to DWH database.");
+
+            // ── Auto-create DWH tables if missing ──
+            var checkTable = await dwhConn.QueryFirstOrDefaultAsync<int>(
+                "SELECT COUNT(*) FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Fact_Sales]') AND type in (N'U')");
+            if (checkTable == 0)
+            {
+                var ddl = @"
+                    CREATE TABLE Dim_Customer ( CustomerKey INT IDENTITY(1,1) PRIMARY KEY, CustomerId NVARCHAR(450) NOT NULL, FullName NVARCHAR(255) NULL, Email NVARCHAR(255) NULL, Phone NVARCHAR(50) NULL, Address NVARCHAR(MAX) NULL, City NVARCHAR(100) NULL, CreatedAt DATETIME NULL );
+                    CREATE TABLE Dim_Product ( ProductKey INT IDENTITY(1,1) PRIMARY KEY, ProductId INT NOT NULL, ProductName NVARCHAR(255) NULL, CategoryName NVARCHAR(100) NULL, Price DECIMAL(18,2) NULL, Cost DECIMAL(18,2) NULL, Status NVARCHAR(50) NULL );
+                    CREATE TABLE Dim_Time ( TimeKey INT PRIMARY KEY, FullDate DATE NOT NULL, Day INT NOT NULL, Month INT NOT NULL, MonthName NVARCHAR(50) NOT NULL, Quarter INT NOT NULL, Year INT NOT NULL, DayOfWeek NVARCHAR(50) NOT NULL, IsWeekend BIT NOT NULL );
+                    CREATE TABLE Fact_Sales ( SalesKey INT IDENTITY(1,1) PRIMARY KEY, CustomerKey INT NOT NULL, ProductKey INT NOT NULL, TimeKey INT NOT NULL, OrderId INT NOT NULL, OrderDetailId INT NOT NULL, Quantity INT NOT NULL, UnitPrice DECIMAL(18,2) NOT NULL, DiscountAmount DECIMAL(18,2) DEFAULT 0, TotalAmount DECIMAL(18,2) NOT NULL, Profit DECIMAL(18,2) NULL, CONSTRAINT FK_FactSales_Customer FOREIGN KEY (CustomerKey) REFERENCES Dim_Customer(CustomerKey), CONSTRAINT FK_FactSales_Product FOREIGN KEY (ProductKey) REFERENCES Dim_Product(ProductKey), CONSTRAINT FK_FactSales_Time FOREIGN KEY (TimeKey) REFERENCES Dim_Time(TimeKey) );
+                    CREATE NONCLUSTERED INDEX IX_FactSales_Keys ON Fact_Sales(CustomerKey, ProductKey, TimeKey);
+                ";
+                await dwhConn.ExecuteAsync(ddl);
+                Console.WriteLine("[DWH Sync] DWH tables created successfully.");
+            }
+
+            Console.WriteLine("[DWH Sync] Clearing old DWH tables...");
 
             // ── Clean old DWH data in correct order (Tránh lỗi khóa ngoại) ───
             await dwhConn.ExecuteAsync("DELETE FROM Fact_Sales");
@@ -186,7 +204,7 @@ namespace Web_HoaTuoi.Server.Services
 
             var guestCustomerKey = customerMap.TryGetValue("-1", out var gk) ? gk : -1;
 
-            var activeOrders = orders.Where(o => o.Status != 4 && o.Status != 5).ToDictionary(o => o.Id);
+            var activeOrders = orders.Where(o => o.Status == 3).ToDictionary(o => o.Id);
             var activeOrderItems = orderItems.Where(oi => activeOrders.ContainsKey(oi.OrderId)).ToList();
 
             var factsToInsert = new List<(int CustomerKey, int ProductKey, int TimeKey, int OrderId, int OrderDetailId, int Quantity, decimal UnitPrice, decimal DiscountAmount, decimal TotalAmount, decimal Profit)>();

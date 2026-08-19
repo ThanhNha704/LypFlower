@@ -21,7 +21,6 @@ export default function OrdersPage() {
 
     const [selectedOrder, setSelectedOrder] = useState(null)
     const [showOrderModal, setShowOrderModal] = useState(false)
-    const [isCancelling, setIsCancelling] = useState(false)
     const [showQrModal, setShowQrModal] = useState(false)
     const [qrInfo, setQrInfo] = useState(null)
 
@@ -116,10 +115,9 @@ export default function OrdersPage() {
     const getStatusStyle = (status) => {
         switch (status?.toLowerCase()) {
             case 'completed': return { bg: 'bg-green-50', text: 'text-green-600', icon: <CheckCircle2 size={12} /> };
-            case 'pending': return { bg: 'bg-amber-50', text: 'text-amber-600', icon: <Clock size={12} /> };
-            case 'processing': return { bg: 'bg-blue-50', text: 'text-blue-600', icon: <Clock size={12} /> };
-            case 'shipping': return { bg: 'bg-blue-50', text: 'text-blue-600', icon: <Package size={12} /> };
-            case 'cancelled': return { bg: 'bg-red-50', text: 'text-red-600', icon: <XCircle size={12} /> };
+            case 'placed': return { bg: 'bg-yellow-50', text: 'text-yellow-600', icon: <Clock size={12} /> };
+            case 'preparing': return { bg: 'bg-blue-50', text: 'text-blue-600', icon: <Clock size={12} /> };
+            case 'delivering': return { bg: 'bg-purple-50', text: 'text-purple-600', icon: <Package size={12} /> };
             default: return { bg: 'bg-gray-50', text: 'text-gray-600', icon: <Clock size={12} /> };
         }
     }
@@ -133,38 +131,19 @@ export default function OrdersPage() {
             toast.error("Không thể lấy chi tiết đơn hàng")
         }
     }
-
-    const handleCancelOrder = async (id) => {
-        if (!confirm("Bạn có chắc chắn muốn huỷ đơn hàng này?")) return;
-        setIsCancelling(true)
-        try {
-            await orderApi.cancelOrder(id)
-            toast.success("Huỷ đơn hàng thành công")
-            setShowOrderModal(false)
-            setLoadingOrders(true)
-            const res = await orderApi.getMyOrders()
-            setOrders(res)
-            setLoadingOrders(false)
-        } catch (err) {
-            toast.error(err.response?.data?.message || "Lỗi khi huỷ đơn hàng")
-        } finally {
-            setIsCancelling(false)
-        }
-    }
-
     const filteredOrders = orders.filter(order => {
         if (filterStatus === "all") return true;
         const status = order.status?.toLowerCase() || "";
-        if (filterStatus === "processing") return status === "pending" || status === "processing";
+        if (filterStatus === "preparing") return status === "placed" || status === "preparing";
+        if (filterStatus === "delivering") return status === "delivering";
         return status === filterStatus;
     });
 
     const orderTabs = [
         { id: "all", label: "Tất cả" },
-        { id: "processing", label: "Đang xử lý" },
-        { id: "shipping", label: "Đang giao" },
-        { id: "completed", label: "Hoàn thành" },
-        { id: "cancelled", label: "Đã huỷ" }
+        { id: "preparing", label: "Đang chuẩn bị" },
+        { id: "delivering", label: "Đang giao" },
+        { id: "completed", label: "Hoàn thành" }
     ];
 
     return (
@@ -226,7 +205,12 @@ export default function OrdersPage() {
                                                         <h3 className="font-bold text-gray-900 text-sm">Đơn hàng #{order.id}</h3>
                                                         <div className="flex items-center gap-2 mt-1">
                                                             <span className={`flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${status.bg} ${status.text}`}>
-                                                                {status.icon} {order.status}
+                                                                {status.icon} {
+                                                                    order.status === 'Placed' ? 'Đã đặt' :
+                                                                    order.status === 'Preparing' ? 'Đang chuẩn bị' :
+                                                                    order.status === 'Delivering' ? 'Đang giao' :
+                                                                    order.status === 'Completed' ? 'Hoàn thành' : order.status
+                                                                }
                                                             </span>
                                                             <span className="text-[10px] text-gray-400 font-bold tracking-tight">• {new Date(order.createdAt).toLocaleDateString('vi-VN')}</span>
                                                         </div>
@@ -311,7 +295,12 @@ export default function OrdersPage() {
                                 <div>
                                     <p className="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1">Trạng thái</p>
                                     <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-lg ${getStatusStyle(selectedOrder.status).bg} ${getStatusStyle(selectedOrder.status).text}`}>
-                                        {getStatusStyle(selectedOrder.status).icon} {selectedOrder.status}
+                                        {getStatusStyle(selectedOrder.status).icon} {
+                                            selectedOrder.status === 'Placed' ? 'Đã đặt' :
+                                            selectedOrder.status === 'Preparing' ? 'Đang chuẩn bị' :
+                                            selectedOrder.status === 'Delivering' ? 'Đang giao' :
+                                            selectedOrder.status === 'Completed' ? 'Hoàn thành' : selectedOrder.status
+                                        }
                                     </span>
                                 </div>
                                 <div className="text-right">
@@ -507,21 +496,12 @@ export default function OrdersPage() {
 
                             {/* Actions */}
                             <div className="pt-4 border-t border-gray-100 space-y-3">
-                                {selectedOrder.status === 'Pending' && !selectedOrder.isPaid && (
+                                {selectedOrder.status === 'Placed' && !selectedOrder.isPaid && (
                                     <button
                                         onClick={handlePayNow}
                                         className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-md shadow-orange-500/20 active:scale-95 cursor-pointer"
                                     >
                                         Thanh toán ngay (VietQR)
-                                    </button>
-                                )}
-                                {(selectedOrder.status === 'Pending' || selectedOrder.status === 'Processing') && (
-                                    <button
-                                        onClick={() => handleCancelOrder(selectedOrder.id)}
-                                        disabled={isCancelling}
-                                        className="w-full py-3.5 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-rose-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed animate-none"
-                                    >
-                                        {isCancelling ? "Đang huỷ..." : "Huỷ đơn hàng"}
                                     </button>
                                 )}
                             </div>

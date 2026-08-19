@@ -309,6 +309,9 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!user) {
       navigate(`/dang-nhap?from=${encodeURIComponent(location.pathname)}`, { replace: true });
+    } else if (user.role === 'Admin' || user.role === 'Staff') {
+      toast.error('Quản trị viên và Nhân viên không được phép đặt hàng.');
+      navigate('/', { replace: true });
     }
   }, [user, navigate, location]);
 

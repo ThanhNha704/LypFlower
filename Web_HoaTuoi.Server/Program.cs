@@ -202,7 +202,7 @@ using (var scope = app.Services.CreateScope())
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-    db.Database.Migrate();
+    try { db.Database.Migrate(); } catch (Exception ex) { Console.WriteLine($"[Migrate Warning] Bỏ qua lỗi migrate: {ex.Message}"); }
     await DbSeeder.SeedAsync(db, userManager, roleManager);
 
     var inventory = scope.ServiceProvider.GetRequiredService<IInventoryService>();

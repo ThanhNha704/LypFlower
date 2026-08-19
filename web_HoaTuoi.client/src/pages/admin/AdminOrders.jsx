@@ -7,14 +7,12 @@ import { formatVnd } from '../../utils/format';
 import { resolveImage } from '../../utils/imageResolver';
 import toast from 'react-hot-toast';
 
-const STATUSES = ['', 'Pending', 'Processing', 'Shipping', 'Completed', 'Cancelled', 'Refunded'];
+const STATUSES = ['', 'Placed', 'Preparing', 'Delivering', 'Completed'];
 const STATUS_LABELS = {
-  Pending:    { label: 'Chờ xác nhận', cls: 'bg-yellow-100 text-yellow-700' },
-  Processing: { label: 'Đang xử lý', cls: 'bg-blue-100 text-blue-700' },
-  Shipping:   { label: 'Đang giao',    cls: 'bg-purple-100 text-purple-700' },
+  Placed:    { label: 'Đã đặt hàng', cls: 'bg-yellow-100 text-yellow-700' },
+  Preparing: { label: 'Đang chuẩn bị', cls: 'bg-blue-100 text-blue-700' },
+  Delivering:   { label: 'Đang giao',    cls: 'bg-purple-100 text-purple-700' },
   Completed:  { label: 'Hoàn thành',   cls: 'bg-green-100 text-green-700' },
-  Cancelled:  { label: 'Đã hủy',       cls: 'bg-red-100 text-red-700' },
-  Refunded: { label: 'Đã hoàn tiền', cls: 'bg-gray-100 text-gray-600' },
 };
 
 export default function AdminOrders() {
@@ -107,7 +105,7 @@ export default function AdminOrders() {
       toast.success('Cập nhật trạng thái thành công');
       fetchOrders();
       if (detail?.id === orderId) setDetail(d => ({ ...d, status }));
-    } catch { toast.error('Không thể cập nhật'); }
+    } catch(err) { toast.error(err.response?.data?.message || 'Không thể cập nhật'); }
   }
 
   async function assignStaff(orderId, staffId) {
@@ -135,7 +133,7 @@ export default function AdminOrders() {
       await apiClient.put(`/orders/bulk-status`, { orderIds: selectedIds, status });
       toast.success(`Đã cập nhật ${selectedIds.length} đơn hàng`);
       fetchOrders();
-    } catch { toast.error('Không thể cập nhật hàng loạt'); }
+    } catch (err) { toast.error(err.response?.data?.message || 'Không thể cập nhật hàng loạt'); }
   }
 
   const toggleAll = (e) => {
@@ -149,9 +147,8 @@ export default function AdminOrders() {
 
   function getNextAction(status) {
     switch (status) {
-      case 'Pending': return { label: 'Xác nhận đơn', next: 'Processing', color: 'bg-blue-500 hover:bg-blue-600' };
-      case 'Processing': return { label: 'Giao hàng', next: 'Shipping', color: 'bg-purple-500 hover:bg-purple-600' };
-      case 'Shipping': return { label: 'Hoàn thành', next: 'Completed', color: 'bg-green-500 hover:bg-green-600' };
+      case 'Placed': return { label: 'Chuẩn bị hàng', next: 'Preparing', color: 'bg-blue-500 hover:bg-blue-600' };
+      case 'Preparing': return { label: 'Giao hàng', next: 'Delivering', color: 'bg-purple-500 hover:bg-purple-600' };
       default: return null;
     }
   }
@@ -238,10 +235,8 @@ export default function AdminOrders() {
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center justify-between shadow-sm animate-in slide-in-from-top-2">
           <span className="text-sm font-medium text-amber-900">Đã chọn <b>{selectedIds.length}</b> đơn hàng</span>
           <div className="flex gap-2">
-            <button onClick={() => handleBulkUpdate('Processing')} className="btn-primary text-xs py-1.5 px-3 bg-blue-500 hover:bg-blue-600 border-none shadow-none text-white">Chuyển sang Đang xử lý</button>
-            <button onClick={() => handleBulkUpdate('Shipping')} className="btn-primary text-xs py-1.5 px-3 bg-purple-500 hover:bg-purple-600 border-none shadow-none text-white">Chuyển sang Đang giao</button>
-            <button onClick={() => handleBulkUpdate('Completed')} className="btn-primary text-xs py-1.5 px-3 bg-green-500 hover:bg-green-600 border-none shadow-none text-white">Chuyển sang Hoàn thành</button>
-            <button onClick={() => handleBulkUpdate('Cancelled')} className="btn-primary text-xs py-1.5 px-3 bg-red-500 hover:bg-red-600 border-none shadow-none text-white">Huỷ các đơn này</button>
+            <button onClick={() => handleBulkUpdate('Preparing')} className="btn-primary text-xs py-1.5 px-3 bg-blue-500 hover:bg-blue-600 border-none shadow-none text-white">Chuyển sang Đang chuẩn bị</button>
+            <button onClick={() => handleBulkUpdate('Delivering')} className="btn-primary text-xs py-1.5 px-3 bg-purple-500 hover:bg-purple-600 border-none shadow-none text-white">Chuyển sang Đang giao</button>
           </div>
         </div>
       )}
@@ -286,30 +281,15 @@ export default function AdminOrders() {
           <select 
             value={o.status} 
             onChange={e => updateStatus(o.id, e.target.value)}
-            disabled={o.status === 'Completed' || o.status === 'Cancelled' || o.status === 'Refunded'}
+            disabled={o.status === 'Completed' || o.status === 'Delivering'}
             className="text-xs font-medium px-2 py-1.5 rounded-lg border border-gray-200 cursor-pointer text-gray-600 focus:ring-amber-500 hover:border-gray-300 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value={o.status}>{STATUS_LABELS[o.status]?.label ?? o.status}</option>
-            {o.status === 'Pending' && (
-              <>
-                <option value="Processing">Đang xử lý</option>
-                <option value="Cancelled">Đã hủy</option>
-              </>
+            {o.status === 'Placed' && (
+              <option value="Preparing">Đang chuẩn bị</option>
             )}
-            {o.status === 'Processing' && (
-              <>
-                <option value="Shipping">Đang giao</option>
-                <option value="Cancelled">Đã hủy</option>
-              </>
-            )}
-            {o.status === 'Shipping' && (
-              <>
-                <option value="Completed">Hoàn thành</option>
-                <option value="Cancelled">Đã hủy</option>
-              </>
-            )}
-            {(o.status === 'Completed' || o.status === 'Cancelled') && (
-              <option value="Refunded">Đã hoàn tiền</option>
+            {o.status === 'Preparing' && (
+              <option value="Delivering">Đang giao</option>
             )}
           </select>
           
@@ -322,7 +302,7 @@ export default function AdminOrders() {
           </button>
         </td>
         <td className="px-5 py-3">
-          {(o.status === 'Processing' || o.status === 'Shipping') ? (
+          {(o.status === 'Placed' || o.status === 'Preparing' || o.status === 'Delivering') ? (
             <select
               value={o.staffId || ''}
               onChange={e => assignStaff(o.id, e.target.value)}
@@ -403,23 +383,19 @@ export default function AdminOrders() {
           <h3 className="font-semibold text-gray-800 mb-3 text-xs uppercase tracking-wider">Tiến trình đơn hàng</h3>
           <div className="flex justify-between items-center relative">
             <div className="absolute left-0 top-1/2 w-full h-0.5 bg-gray-200 -z-0"></div>
-            {['Pending', 'Processing', 'Shipping', 'Completed'].map((s, idx) => {
-              const stages = ['Pending', 'Processing', 'Shipping', 'Completed'];
+            {['Placed', 'Preparing', 'Delivering', 'Completed'].map((s, idx) => {
+              const stages = ['Placed', 'Preparing', 'Delivering', 'Completed'];
               const currentIndex = stages.indexOf(detail.status);
               const isPast = stages.indexOf(s) <= currentIndex;
               const isCurrent = detail.status === s;
-              const isCancelled = detail.status === 'Cancelled' || detail.status === 'Refunded';
               return (
                 <div key={s} className="relative z-10 flex flex-col items-center">
-                  <div className={`w-4 h-4 rounded-full border-2 mb-1 ${(isPast && !isCancelled) ? 'bg-amber-500 border-amber-500' : 'bg-white border-gray-300'} ${isCurrent ? 'ring-2 ring-amber-200 ring-offset-1' : ''}`}></div>
-                  <span className={`text-[10px] font-medium ${(isPast && !isCancelled) ? 'text-amber-600' : 'text-gray-400'}`}>{STATUS_LABELS[s]?.label}</span>
+                  <div className={`w-4 h-4 rounded-full border-2 mb-1 ${isPast ? 'bg-amber-500 border-amber-500' : 'bg-white border-gray-300'} ${isCurrent ? 'ring-2 ring-amber-200 ring-offset-1' : ''}`}></div>
+                  <span className={`text-[10px] font-medium ${isPast ? 'text-amber-600' : 'text-gray-400'}`}>{STATUS_LABELS[s]?.label}</span>
                 </div>
               )
             })}
           </div>
-          {(detail.status === 'Cancelled' || detail.status === 'Refunded') && (
-            <div className="mt-3 text-center text-xs font-bold text-red-500 bg-red-50 p-2 rounded-lg">Đơn hàng đã bị {STATUS_LABELS[detail.status].label.toLowerCase()}</div>
-          )}
         </div>
 
   <div className="border-t pt-4">

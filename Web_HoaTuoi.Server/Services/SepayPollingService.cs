@@ -88,7 +88,7 @@ namespace Web_HoaTuoi.Server.Services
 
             // Get pending unpaid orders
             var pendingOrders = await dbContext.Orders
-                .Where(o => !o.IsPaid && o.Status == OrderStatus.Pending)
+                .Where(o => !o.IsPaid && o.Status == OrderStatus.Placed)
                 .ToListAsync(stoppingToken);
 
             if (!pendingOrders.Any())
@@ -126,7 +126,7 @@ namespace Web_HoaTuoi.Server.Services
                         if (amountIn >= order.FinalAmount)
                         {
                             order.IsPaid = true;
-                            order.Status = OrderStatus.Processing;
+                            order.Status = OrderStatus.Preparing;
                             hasChanges = true;
                             
                             _logger.LogInformation("✅ [Polling] Order {OrderCode} marked as Paid via SePay.", order.OrderCode);

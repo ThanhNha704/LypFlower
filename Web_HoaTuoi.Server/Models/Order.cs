@@ -2,12 +2,10 @@ namespace Web_HoaTuoi.Server.Models;
 
 public enum OrderStatus
 {
-    Pending,        // Chờ xác nhận
-    Processing,     // Đang chuẩn bị hoa
-    Shipping,       // Đang giao hoa
-    Completed,      // Giao thành công
-    Cancelled,      // Đã hủy
-    Refunded        // Đã hoàn tiền
+    Placed = 0,             // Đã đặt hàng (thay cho Pending)
+    Preparing = 1,          // Đang chuẩn bị (thay cho Processing)
+    Delivering = 2,         // Đang giao (thay cho Shipping)
+    Completed = 3           // Hoàn thành
 }
 
 public class Order
@@ -26,7 +24,7 @@ public class Order
     public AppUser? Staff { get; set; }
 
     // Trạng thái đơn hàng
-    public OrderStatus Status { get; set; } = OrderStatus.Pending;
+    public OrderStatus Status { get; set; } = OrderStatus.Placed;
 
     // ───── Thông tin người nhận hoa ─────
 

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { MapPin, CheckCircle, Package, XCircle, ShoppingBag, Truck, Calendar, DollarSign, ExternalLink } from 'lucide-react';
 import apiClient from '../../api/client';
 import toast from 'react-hot-toast';
@@ -42,8 +42,8 @@ export default function StaffOrders() {
   };
 
   // Phân loại đơn hàng
-  const pendingOrders = orders.filter(o => o.status === 'Processing' || o.status === 'Shipping');
-  const historyOrders = orders.filter(o => o.status === 'Completed' || o.status === 'Cancelled');
+  const pendingOrders = orders.filter(o => o.status === 'Delivering');
+  const historyOrders = orders.filter(o => o.status === 'Completed');
 
   const displayedOrders = activeTab === 'pending' ? pendingOrders : historyOrders;
 
@@ -116,14 +116,13 @@ export default function StaffOrders() {
                 </div>
                 
                 <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                  o.status === 'Processing' ? 'bg-blue-50 text-blue-600 border border-blue-200' :
-                  o.status === 'Shipping' ? 'bg-purple-50 text-purple-600 border border-purple-200' :
-                  o.status === 'Completed' ? 'bg-green-50 text-green-600 border border-green-200' :
-                  'bg-rose-50 text-rose-600 border border-rose-200'
+                  o.status === 'Preparing' ? 'bg-blue-50 text-blue-600 border border-blue-200' :
+                  o.status === 'Delivering' ? 'bg-purple-50 text-purple-600 border border-purple-200' :
+                  'bg-green-50 text-green-600 border border-green-200'
                 }`}>
-                  {o.status === 'Processing' ? 'Chờ lấy hàng' : 
-                   o.status === 'Shipping' ? 'Đang giao' : 
-                   o.status === 'Completed' ? 'Đã giao' : 'Đã hủy'}
+                  {o.status === 'Preparing' ? 'Đang chuẩn bị' : 
+                   o.status === 'Delivering' ? 'Đang giao' : 
+                   'Đã giao'}
                 </span>
               </div>
 
@@ -186,33 +185,8 @@ export default function StaffOrders() {
                     <MapPin size={14} /> Bản đồ chỉ đường
                   </button>
                   
-                  {o.status === 'Processing' && (
-                    <button 
-                      onClick={() => {
-                        if(window.confirm('Xác nhận nhận đơn và bắt đầu đi giao?')) {
-                          handleUpdateStatus(o.id, 'Shipping');
-                        }
-                      }}
-                      className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 text-xs transition-all shadow-md shadow-amber-500/20 active:scale-95"
-                    >
-                      Bắt đầu đi giao
-                    </button>
-                  )}
-
-                  {o.status === 'Shipping' && (
+                  {o.status === 'Delivering' && (
                     <>
-                      <button 
-                        onClick={() => {
-                          const reason = window.prompt('Nhập lý do giao hàng thất bại (hủy đơn):');
-                          if (reason !== null) {
-                            handleUpdateStatus(o.id, 'Cancelled');
-                          }
-                        }}
-                        className="py-2.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-xl flex items-center justify-center gap-1.5 text-xs transition-colors border border-rose-100"
-                        title="Giao thất bại"
-                      >
-                        <XCircle size={14} /> Hủy đơn
-                      </button>
                       <button 
                         onClick={() => {
                           if(window.confirm('Xác nhận đã giao hoa thành công và thu đủ tiền (nếu có)?')) {

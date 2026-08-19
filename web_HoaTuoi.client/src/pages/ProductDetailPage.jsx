@@ -248,6 +248,11 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Qty + Add to cart */}
+          {user && (user.role === 'Admin' || user.role === 'Staff') ? (
+            <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl text-gray-500 text-sm font-semibold mt-4 text-center uppercase tracking-widest">
+              Chức năng đặt hàng chỉ dành cho tài khoản Khách Hàng
+            </div>
+          ) : (
           <div className="flex flex-col gap-4 pt-4">
             <div className="flex items-center gap-3">
               <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden bg-white">
@@ -304,6 +309,7 @@ export default function ProductDetailPage() {
               TƯ VẤN NHANH (ZALO/HOTLINE)
             </button>
           </div>
+          )}
         </div>
       </div>
 

@@ -136,7 +136,7 @@ public class OrdersController : ControllerBase
             {
                 OrderCode = orderCode,
                 UserId = userId,
-                Status = OrderStatus.Pending,
+                Status = OrderStatus.Placed,
                 ReceiverName = req.ReceiverName,
                 ReceiverPhone = req.ReceiverPhone,
                 ReceiverAddress = req.ReceiverAddress,
@@ -388,41 +388,6 @@ public class OrdersController : ControllerBase
         });
     }
 
-    // PUT /api/orders/{id}/cancel
-    [HttpPut("{id:int}/cancel")]
-    [Authorize]
-    public async Task<ActionResult> CancelOrder(int id)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        
-        var order = await _db.Orders
-            .Include(o => o.Items)
-            .FirstOrDefaultAsync(o => o.Id == id && o.UserId == userId);
-
-        if (order is null)
-            return NotFound();
-
-        if (order.Status != OrderStatus.Pending && order.Status != OrderStatus.Processing)
-            return BadRequest(new { message = "Chỉ có thể huỷ đơn hàng chưa được giao." });
-
-        order.Status = OrderStatus.Cancelled;
-
-        // Restore stock
-        foreach (var item in order.Items)
-        {
-            await _db.Products
-                .Where(p => p.Id == item.ProductId)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(p => p.Stock, p => p.Stock + item.Quantity)
-                    .SetProperty(p => p.SoldCount, p => p.SoldCount - item.Quantity));
-        }
-
-        await _db.SaveChangesAsync();
-
-        await _hubContext.Clients.All.SendAsync("OrderCancelled", id);
-
-        return Ok(new { message = "Huỷ đơn hàng thành công" });
-    }
 
     // PUT /api/orders/{id}/status
     [HttpPut("{id:int}/status")]
@@ -453,44 +418,48 @@ public class OrdersController : ControllerBase
         }
 
         // 2. Chặn thay đổi từ trạng thái cuối
-        if (order.Status == OrderStatus.Completed || order.Status == OrderStatus.Cancelled || order.Status == OrderStatus.Refunded)
+        if (order.Status == OrderStatus.Completed)
         {
-            return BadRequest(new { message = $"Đơn hàng đã ở trạng thái '{order.Status.ToString()}', không thể thay đổi trạng thái nữa." });
+            return BadRequest(new { message = "Đơn hàng đã hoàn thành, không thể thay đổi trạng thái nữa." });
         }
 
         // 3. Kiểm tra logic luồng trạng thái 1 chiều
-        if (order.Status == OrderStatus.Pending)
+        if (order.Status == OrderStatus.Placed)
         {
-            if (newStatus != OrderStatus.Processing && newStatus != OrderStatus.Cancelled)
+            if (newStatus != OrderStatus.Preparing)
             {
-                return BadRequest(new { message = "Từ trạng thái Chờ xác nhận chỉ được chuyển sang Đang chuẩn bị (Processing) hoặc Đã hủy (Cancelled)." });
+                return BadRequest(new { message = "Từ trạng thái Đã đặt hàng chỉ được chuyển sang Đang chuẩn bị (Preparing)." });
             }
         }
-        else if (order.Status == OrderStatus.Processing)
+        else if (order.Status == OrderStatus.Preparing)
         {
-            if (newStatus != OrderStatus.Shipping && newStatus != OrderStatus.Cancelled)
+            if (newStatus != OrderStatus.Delivering)
             {
-                return BadRequest(new { message = "Từ trạng thái Đang chuẩn bị chỉ được chuyển sang Đang giao (Shipping) hoặc Đã hủy (Cancelled)." });
+                return BadRequest(new { message = "Từ trạng thái Đang chuẩn bị chỉ được chuyển sang Đang giao (Delivering)." });
             }
         }
-        else if (order.Status == OrderStatus.Shipping)
+        else if (order.Status == OrderStatus.Delivering)
         {
-            if (newStatus != OrderStatus.Completed && newStatus != OrderStatus.Cancelled)
+            if (newStatus != OrderStatus.Completed)
             {
-                return BadRequest(new { message = "Từ trạng thái Đang giao chỉ được chuyển sang Giao thành công (Completed) hoặc Đã hủy (Cancelled)." });
+                return BadRequest(new { message = "Từ trạng thái Đang giao chỉ được chuyển sang Giao thành công (Completed)." });
             }
         }
 
-        // 4. Ràng buộc cụ thể của Staff
+        // 4. Phân quyền cập nhật trạng thái
+        if (isAdmin && !isStaff)
+        {
+            if (newStatus == OrderStatus.Completed)
+            {
+                return BadRequest(new { message = "Admin không được quyền xác nhận Hoàn thành đơn hàng. Chỉ nhân viên giao hàng mới có quyền này." });
+            }
+        }
+
         if (isStaff && !isAdmin)
         {
-            if (order.Status == OrderStatus.Processing && newStatus != OrderStatus.Shipping)
+            if (order.Status != OrderStatus.Delivering || newStatus != OrderStatus.Completed)
             {
-                return BadRequest(new { message = "Nhân viên giao hàng chỉ có quyền chuyển đơn sang trạng thái Đang giao." });
-            }
-            if (order.Status == OrderStatus.Shipping && newStatus != OrderStatus.Completed && newStatus != OrderStatus.Cancelled)
-            {
-                return BadRequest(new { message = "Nhân viên giao hàng chỉ có quyền hoàn thành hoặc hủy đơn." });
+                return BadRequest(new { message = "Nhân viên giao hàng chỉ có quyền xác nhận Hoàn thành (Completed) cho đơn Đang giao." });
             }
         }
 
@@ -545,10 +514,7 @@ public class OrdersController : ControllerBase
         if (order is null) return NotFound();
 
         order.IsPaid = true;
-        if (order.Status == OrderStatus.Pending)
-        {
-            order.Status = OrderStatus.Processing;
-        }
+        // Do not auto change status!
         await _db.SaveChangesAsync();
 
         return Ok(new { success = true, message = "Xác nhận đã thanh toán thành công!" });
@@ -579,19 +545,19 @@ public class OrdersController : ControllerBase
         if (order == null) return NotFound();
 
         // Chặn phân công staff khi đơn đã ở trạng thái cuối
-        if (order.Status == OrderStatus.Completed || order.Status == OrderStatus.Cancelled || order.Status == OrderStatus.Refunded)
+        if (order.Status == OrderStatus.Completed)
         {
-            return BadRequest("Không thể phân công nhân viên cho đơn hàng đã hoàn tất hoặc đã hủy.");
+            return BadRequest("Không thể phân công nhân viên cho đơn hàng đã hoàn tất.");
         }
 
         var staff = await _userManager.FindByIdAsync(staffId);
         if (staff == null) return BadRequest("Nhân viên không tồn tại.");
 
         order.StaffId = staffId;
-        // Chỉ tự động chuyển sang Processing nếu trạng thái hiện tại là Pending
-        if (order.Status == OrderStatus.Pending)
+        // Chỉ tự động chuyển sang Delivering nếu chưa giao
+        if (order.Status == OrderStatus.Placed || order.Status == OrderStatus.Preparing)
         {
-            order.Status = OrderStatus.Processing;
+            order.Status = OrderStatus.Delivering;
         }
         
         await _db.SaveChangesAsync();
@@ -705,7 +671,6 @@ public class OrdersController : ControllerBase
                     if (amount >= order.FinalAmount)
                     {
                         order.IsPaid = true;
-                        order.Status = OrderStatus.Processing;
                         await _db.SaveChangesAsync();
                         
                         Console.WriteLine($"✅ [GẠCH NỢ THÀNH CÔNG] Đơn hàng {order.OrderCode} đã được chuyển sang trạng thái Processing!");

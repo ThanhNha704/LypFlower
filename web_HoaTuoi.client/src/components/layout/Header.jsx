@@ -193,14 +193,16 @@ export default function Header() {
                             )}
                         </Link>
 
-                        <Link to="/gio-hang" className="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors">
-                            <ShoppingCart size={18} />
-                            {totalItems > 0 && (
-                                <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
-                                    {totalItems}
-                                </span>
-                            )}
-                        </Link>
+                        {(!user || (user.role !== 'Admin' && user.role !== 'Staff')) && (
+                            <Link to="/gio-hang" className="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                                <ShoppingCart size={18} />
+                                {totalItems > 0 && (
+                                    <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
+                                        {totalItems}
+                                    </span>
+                                )}
+                            </Link>
+                        )}
 
                         {user ? (
                             <div className="relative group">
