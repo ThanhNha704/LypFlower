@@ -60,7 +60,14 @@ public class CategoriesController : ControllerBase
             {
                 var childIds = allCats.Where(ch => ch.ParentCategoryId == c.Id).Select(ch => ch.Id).ToHashSet();
                 childIds.Add(c.Id);
-                var count = _db.Products.Count(p => p.IsActive && childIds.Contains(p.CategoryId));
+                
+                // Tối ưu hóa: Thực hiện đếm số sản phẩm trực tiếp trên bộ nhớ (In-memory)
+                // để tránh lỗi N+1 Query làm chậm hệ thống khi gọi CSDL liên tục.
+                var count = allCats
+                    .Where(cat => childIds.Contains(cat.Id))
+                    .SelectMany(cat => cat.Products)
+                    .Count(p => p.IsActive);
+
                 return new CategoryDto(
                     c.Id, c.Name, c.Slug, c.Description, c.ImageUrl, c.Icon, c.SortOrder,
                     count

@@ -38,7 +38,12 @@ export default function CartPage() {
                   className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover bg-gray-50 flex-shrink-0" />
                 <div className="flex-1 min-w-0 text-left">
                   <p className="text-sm font-semibold text-gray-800 line-clamp-2">{item.productName}</p>
-                  <p className="text-pink-600 font-bold mt-1 text-xs sm:text-sm">{formatVnd(item.unitPrice)}</p>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-pink-600 font-bold text-xs sm:text-sm">{formatVnd(item.unitPrice)}</span>
+                    {item.originalPrice > item.unitPrice && (
+                      <span className="text-gray-400 line-through text-[10px] sm:text-xs">{formatVnd(item.originalPrice)}</span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center justify-between sm:justify-start gap-4 w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0">

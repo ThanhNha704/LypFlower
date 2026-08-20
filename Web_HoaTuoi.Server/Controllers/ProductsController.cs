@@ -239,6 +239,9 @@ public class ProductsController : ControllerBase
             "price_asc" => query.OrderByDescending(p => p.IsActive).ThenBy(p => p.Price),
             "price_desc" => query.OrderByDescending(p => p.IsActive).ThenByDescending(p => p.Price),
             "best_seller" => query.OrderByDescending(p => p.IsActive).ThenByDescending(p => p.SoldCount),
+            "discount_desc" => query.OrderByDescending(p => p.IsActive)
+                                    .ThenByDescending(p => p.IsOnSale)
+                                    .ThenByDescending(p => p.Price > 0 ? (double)(p.Price - (p.SalePrice ?? p.Price)) / (double)p.Price : 0),
             "random" => query.OrderByDescending(p => p.IsActive).ThenBy(p => Guid.NewGuid()),
             _ => query.OrderByDescending(p => p.IsActive).ThenByDescending(p => p.CreatedAt)
         };

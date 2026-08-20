@@ -142,9 +142,10 @@ export default function ProductDetailPage() {
     }
   }
 
-  const displayPrice = product.price;
+  const hasSale = product.isOnSale && product.salePrice && product.salePrice > 0 && product.salePrice < product.price;
+  const displayPrice = hasSale ? product.salePrice : product.price;
   const originalPrice = product.price;
-  const discountPct = 0;
+  const discountPct = hasSale ? Math.round((1 - product.salePrice / product.price) * 100) : 0;
 
   // Resolve ảnh từ DB path → bundled Vite URL
   const resolvedMainImage = resolveImage(product.mainImageUrl);
@@ -217,8 +218,16 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Price */}
-          <div className="space-y-1">
-            <span className="text-3xl font-bold text-gray-900">{formatVnd(product.price)}</span>
+          <div className="flex items-baseline gap-3">
+            {discountPct > 0 ? (
+              <>
+                <span className="text-3xl font-bold text-[#E92E69] dark:text-pink-400">{formatVnd(displayPrice)}</span>
+                <span className="text-lg text-gray-400 line-through">{formatVnd(originalPrice)}</span>
+                <span className="bg-red-50 text-red-500 text-xs font-bold px-2 py-0.5 rounded-lg animate-pulse">-{discountPct}%</span>
+              </>
+            ) : (
+              <span className="text-3xl font-bold text-gray-900 dark:text-white">{formatVnd(displayPrice)}</span>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-2">

@@ -90,6 +90,10 @@ export default function ProductCard({ product }) {
                     <div className="absolute top-2 left-2 bg-amber-600/90 backdrop-blur-[2px] text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow">
                         Tạm hết hàng
                     </div>
+                ) : (isOnSale && salePrice && salePrice > 0 && salePrice < price) ? (
+                    <div className="absolute top-2 left-2 bg-red-600/90 backdrop-blur-[2px] text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow animate-pulse">
+                        -{Math.round((1 - salePrice / price) * 100)}%
+                    </div>
                 ) : null}
 
                 <button 
@@ -108,8 +112,15 @@ export default function ProductCard({ product }) {
                 </h3>
 
                 {/* Giá */}
-                <div className="text-sm font-bold text-[#E92E69] dark:text-pink-400">
-                    {formatVnd(price)}
+                <div className="flex items-center justify-center gap-2 min-h-[20px]">
+                    {isOnSale && salePrice && salePrice > 0 && salePrice < price ? (
+                        <>
+                            <span className="text-sm font-bold text-[#E92E69] dark:text-pink-400">{formatVnd(salePrice)}</span>
+                            <span className="text-xs text-gray-400 line-through">{formatVnd(price)}</span>
+                        </>
+                    ) : (
+                        <span className="text-sm font-bold text-[#E92E69] dark:text-pink-400">{formatVnd(price)}</span>
+                    )}
                 </div>
 
                 {/* Rating & Sold Count */}

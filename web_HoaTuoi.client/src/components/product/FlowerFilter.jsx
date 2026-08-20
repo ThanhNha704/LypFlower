@@ -40,7 +40,8 @@ export default function ProductFilter({ filters = {}, onChange }) {
         { value: "newest", label: "Mới nhất" },
         { value: "price_asc", label: "Giá tăng dần" },
         { value: "price_desc", label: "Giá giảm dần" },
-        { value: "best_seller", label: "Bán chạy nhất" }
+        { value: "best_seller", label: "Bán chạy nhất" },
+        { value: "discount_desc", label: "% Giảm giá cao nhất" }
     ];
 
     const hasActiveFilters = Boolean(
@@ -67,7 +68,19 @@ export default function ProductFilter({ filters = {}, onChange }) {
 
             {/* Danh mục / Chủ đề */}
             <FilterSection title="Danh mục">
-                <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
+                <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                    <button
+                        type="button"
+                        onClick={() => onChange({ category: undefined })}
+                        className={`w-full flex items-center justify-between text-left text-[11px] font-semibold py-2 px-3 rounded-xl border transition-all ${
+                            !filters.categorySlug
+                                ? 'bg-[#E92E69] text-white border-[#E92E69] shadow-sm shadow-pink-100'
+                                : 'border-gray-100 dark:border-slate-800/80 hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-750 dark:text-gray-300 bg-white dark:bg-slate-900/50'
+                        }`}
+                    >
+                        <span>Tất cả danh mục</span>
+                    </button>
+
                     {categoryOptions.map((c) => {
                         const isSelected = filters.categorySlug === c.value;
                         return (
@@ -75,66 +88,25 @@ export default function ProductFilter({ filters = {}, onChange }) {
                                 key={c.value}
                                 type="button"
                                 onClick={() => onChange({ category: isSelected ? undefined : c.value })}
-                                className={`flex items-center justify-between text-left text-[11px] font-medium py-1.5 px-2 rounded-lg border transition-all ${
+                                className={`w-full flex items-center justify-between text-left text-[11px] font-medium py-2 px-3 rounded-xl border transition-all ${
                                     isSelected
-                                        ? 'bg-pink-50 dark:bg-pink-900/25 border-pink-300 dark:border-pink-700 text-pink-700 dark:text-pink-400 font-semibold shadow-xs'
-                                        : 'border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800/60 text-gray-600 dark:text-gray-400'
+                                        ? 'bg-[#E92E69] text-white border-[#E92E69] shadow-sm shadow-pink-100 font-semibold'
+                                        : 'border-gray-100 dark:border-slate-800/80 hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-750 dark:text-gray-300 bg-white dark:bg-slate-900/50'
                                 }`}
                             >
                                 <span className="truncate" title={c.label}>{c.label}</span>
+                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
+                                    isSelected 
+                                        ? 'bg-white/20 text-white' 
+                                        : 'bg-gray-150 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
+                                }`}>
+                                    {c.count}
+                                </span>
                             </button>
                         );
                     })}
-
-                    <button
-                        type="button"
-                        onClick={() => onChange({ category: undefined })}
-                        className={`text-center text-[11px] font-medium py-1.5 px-2 rounded-lg border transition-all ${
-                            !filters.categorySlug
-                                ? 'bg-gray-100 dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-gray-100 font-semibold'
-                                : 'border-dashed border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400'
-                        }`}
-                    >
-                        Tất cả danh mục
-                    </button>
                 </div>
             </FilterSection>
-
-            {/* Loại hoa */}
-            <FilterSection title="Loại hoa">
-                <div className="grid grid-cols-2 gap-1.5 max-h-44 overflow-y-auto pr-1">
-                    {flowerTypes.map((f) => {
-                        const isSelected = filters.flowerType === f;
-                        return (
-                            <button
-                                key={f}
-                                type="button"
-                                onClick={() => onChange({ flowerType: isSelected ? undefined : f })}
-                                className={`flex items-center justify-between text-left text-[11px] font-medium py-1.5 px-2 rounded-lg border transition-all ${
-                                    isSelected
-                                        ? 'bg-pink-50 dark:bg-pink-900/25 border-pink-300 dark:border-pink-700 text-pink-700 dark:text-pink-400 font-semibold shadow-xs'
-                                        : 'border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800/60 text-gray-600 dark:text-gray-400'
-                                }`}
-                            >
-                                <span className="truncate" title={f}>{f}</span>
-                            </button>
-                        );
-                    })}
-
-                    <button
-                        type="button"
-                        onClick={() => onChange({ flowerType: undefined })}
-                        className={`text-center text-[11px] font-medium py-1.5 px-2 rounded-lg border transition-all ${
-                            !filters.flowerType
-                                ? 'bg-gray-100 dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-gray-100 font-semibold'
-                                : 'border-dashed border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400'
-                        }`}
-                    >
-                        Tất cả loại hoa
-                    </button>
-                </div>
-            </FilterSection>
-
 
 
             {/* Clear filter */}
