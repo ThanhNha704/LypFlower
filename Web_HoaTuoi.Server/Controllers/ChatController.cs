@@ -355,77 +355,6 @@ namespace Web_HoaTuoi.Server.Controllers
                         productContext = "\nSản phẩm hoa phù hợp hiện có tại cửa hàng:\n" + string.Join("\n", productDetails);
                     }
 
-                    // Chuẩn bị bối cảnh đơn hàng của người dùng (nếu đã đăng nhập hoặc tìm thấy mã đơn cụ thể)
-                    string orderContext = "";
-                    if (!string.IsNullOrEmpty(session.UserId))
-                    {
-                        var recentOrders = await _db.Orders
-                            .Where(o => o.UserId == session.UserId)
-                            .OrderByDescending(o => o.CreatedAt)
-                            .Take(3)
-                            .Select(o => new {
-                                o.OrderCode,
-                                o.CreatedAt,
-                                o.Status,
-                                o.FinalAmount,
-                                o.IsPaid,
-                                o.ReceiverName
-                            })
-                            .ToListAsync();
-
-                        if (recentOrders.Any())
-                        {
-                            var orderStrings = recentOrders.Select(o => 
-                                $"- Đơn hàng {o.OrderCode}: Trị giá {o.FinalAmount:N0}đ, đặt lúc {o.CreatedAt.AddHours(7):dd/MM/yyyy HH:mm}, Trạng thái: {o.Status} ({(o.IsPaid ? "Đã thanh toán" : "Chưa thanh toán")}), Người nhận: {o.ReceiverName}");
-                            orderContext = "\nLịch sử đơn hàng gần đây của khách hàng:\n" + string.Join("\n", orderStrings) + "\n";
-                        }
-                    }
-
-                    // Quét tìm mã đơn hàng cụ thể trong tin nhắn (như #5003, ORD-20260820-1234, ORDMOCK1004, hoặc số ID 5003)
-                    var orderCodeRegex = new System.Text.RegularExpressions.Regex(@"(#\d+|ORD-\d{8}-\d{4}|ORDMOCK\d+|\b\d{4,}\b)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                    var codeMatch = orderCodeRegex.Match(request.Message);
-                    if (codeMatch.Success)
-                    {
-                        var matchedText = codeMatch.Value.Trim();
-                        var cleanCode = matchedText.Replace("#", "");
-
-                        Order? specificOrder = null;
-                        
-                        // Thử tìm theo ID (nếu là số) hoặc theo cột OrderCode
-                        if (int.TryParse(cleanCode, out int parsedId))
-                        {
-                            specificOrder = await _db.Orders
-                                .FirstOrDefaultAsync(o => o.Id == parsedId);
-                        }
-
-                        if (specificOrder == null)
-                        {
-                            specificOrder = await _db.Orders
-                                .FirstOrDefaultAsync(o => o.OrderCode.ToUpper() == cleanCode.ToUpper());
-                        }
-
-                        if (specificOrder != null)
-                        {
-                            // Kiểm tra bảo mật sở hữu đơn hàng
-                            if (string.IsNullOrEmpty(session.UserId))
-                            {
-                                orderContext += $"\n[Thông tin bảo mật]: Khách hàng muốn tra cứu đơn hàng {matchedText} nhưng họ chưa đăng nhập tài khoản. Hãy lịch sự từ chối cung cấp thông tin chi tiết và yêu cầu họ đăng nhập tài khoản sở hữu đơn hàng này để xem.\n";
-                            }
-                            else if (specificOrder.UserId != session.UserId)
-                            {
-                                orderContext += $"\n[Thông tin bảo mật]: Khách hàng (UserId: {session.UserId}) yêu cầu xem đơn hàng {matchedText} nhưng đơn hàng này thuộc về người dùng khác (UserId: {specificOrder.UserId}). Hãy lịch sự từ chối cung cấp thông tin và báo rằng họ không có quyền xem đơn hàng này.\n";
-                            }
-                            else
-                            {
-                                orderContext += $"\n[Thông tin đơn hàng cụ thể khách đang tra cứu]:\nMã đơn: #{specificOrder.Id} (Mã hệ thống: {specificOrder.OrderCode}), Trị giá: {specificOrder.FinalAmount:N0}đ, đặt lúc {specificOrder.CreatedAt.AddHours(7):dd/MM/yyyy HH:mm}, Trạng thái: {specificOrder.Status} ({(specificOrder.IsPaid ? "Đã thanh toán" : "Chưa thanh toán")}), Người nhận: {specificOrder.ReceiverName}, Địa chỉ: {specificOrder.ReceiverAddress}\n";
-                            }
-                        }
-                        else
-                        {
-                            orderContext += $"\n[Thông tin tra cứu]: Khách hàng muốn tra cứu đơn hàng {matchedText} nhưng không tìm thấy đơn này trong hệ thống. Hãy báo lại rằng không tìm thấy đơn hàng này và đề xuất họ kiểm tra lại mã đơn.\n";
-                        }
-                    }
-
                     // Xây dựng Prompt
                     StringBuilder promptBuilder = new StringBuilder();
                     promptBuilder.AppendLine($"Instruction: {systemInstruction}");
@@ -435,10 +364,6 @@ namespace Web_HoaTuoi.Server.Controllers
                         promptBuilder.AppendLine($"{msg.Sender}: {msg.Content}");
                     }
                     promptBuilder.AppendLine($"{productContext}");
-                    if (!string.IsNullOrEmpty(orderContext))
-                    {
-                        promptBuilder.AppendLine($"{orderContext}");
-                    }
                     promptBuilder.AppendLine($"Khách hàng: {request.Message}");
                     promptBuilder.AppendLine("AI:");
 
