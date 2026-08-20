@@ -4,6 +4,7 @@ import { MessageSquare, Send, X, ChevronDown, RefreshCw, Sparkles, Trash2 } from
 import apiClient from "../../api/client";
 import { resolveImage } from "../../utils/imageResolver";
 import toast from "react-hot-toast";
+import { useAuthStore } from "../../store/authStore";
 
 export default function Chatbox() {
   const [isOpen, setIsOpen] = useState(false);
@@ -12,8 +13,11 @@ export default function Chatbox() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  const user = useAuthStore(state => state.user);
+
   const [sessionId, setSessionId] = useState(() => {
-    return localStorage.getItem("lyp_chat_session_id") || "";
+    return sessionStorage.getItem("lyp_chat_session_id") || "";
   });
 
   const chatEndRef = useRef(null);
@@ -72,6 +76,19 @@ export default function Chatbox() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  // Tự động xóa phiên chat cũ khi người dùng đăng nhập hoặc đăng xuất tài khoản khác
+  const prevUserIdRef = useRef(user?.userId);
+  useEffect(() => {
+    if (prevUserIdRef.current !== user?.userId) {
+      sessionStorage.removeItem("lyp_chat_session_id");
+      setSessionId("");
+      setMessages([
+        { sender: "AI", content: greeting, createdAt: new Date() }
+      ]);
+      prevUserIdRef.current = user?.userId;
+    }
+  }, [user?.userId, greeting]);
+
   if (!enabled) return null; // Chatbot bị vô hiệu hóa
 
   const handleSend = async (e) => {
@@ -95,7 +112,7 @@ export default function Chatbox() {
       const data = res.data;
       if (data.sessionId && data.sessionId !== sessionId) {
         setSessionId(data.sessionId);
-        localStorage.setItem("lyp_chat_session_id", data.sessionId);
+        sessionStorage.setItem("lyp_chat_session_id", data.sessionId);
       }
 
       setMessages(prev => [
@@ -125,7 +142,7 @@ export default function Chatbox() {
 
   const handleClearChat = () => {
     if (window.confirm("Bạn có muốn xóa toàn bộ lịch sử trò chuyện và bắt đầu phiên mới?")) {
-      localStorage.removeItem("lyp_chat_session_id");
+      sessionStorage.removeItem("lyp_chat_session_id");
       setSessionId("");
       setMessages([
         { sender: "AI", content: greeting, createdAt: new Date() }
