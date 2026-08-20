@@ -16,9 +16,7 @@ export default function Chatbox() {
   
   const user = useAuthStore(state => state.user);
 
-  const [sessionId, setSessionId] = useState(() => {
-    return sessionStorage.getItem("lyp_chat_session_id") || "";
-  });
+  const [sessionId, setSessionId] = useState("");
 
   const chatEndRef = useRef(null);
   const navigate = useNavigate();
@@ -58,6 +56,11 @@ export default function Chatbox() {
         })
         .catch((err) => {
           console.error("Lỗi khi tải lịch sử chat:", err);
+          if (err.response?.status === 403 || err.response?.status === 401) {
+            const key = `lyp_chat_session_id_${user?.userId || "guest"}`;
+            sessionStorage.removeItem(key);
+            setSessionId("");
+          }
           // Fallback tin nhắn chào
           setMessages([
             { sender: "AI", content: greeting, createdAt: new Date() }
@@ -76,18 +79,12 @@ export default function Chatbox() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // Tự động xóa phiên chat cũ khi người dùng đăng nhập hoặc đăng xuất tài khoản khác
-  const prevUserIdRef = useRef(user?.userId);
+  // Tự động tải sessionId tương ứng với tài khoản đang đăng nhập
   useEffect(() => {
-    if (prevUserIdRef.current !== user?.userId) {
-      sessionStorage.removeItem("lyp_chat_session_id");
-      setSessionId("");
-      setMessages([
-        { sender: "AI", content: greeting, createdAt: new Date() }
-      ]);
-      prevUserIdRef.current = user?.userId;
-    }
-  }, [user?.userId, greeting]);
+    const key = `lyp_chat_session_id_${user?.userId || "guest"}`;
+    const saved = sessionStorage.getItem(key) || "";
+    setSessionId(saved);
+  }, [user?.userId]);
 
   if (!enabled) return null; // Chatbot bị vô hiệu hóa
 
@@ -112,7 +109,8 @@ export default function Chatbox() {
       const data = res.data;
       if (data.sessionId && data.sessionId !== sessionId) {
         setSessionId(data.sessionId);
-        sessionStorage.setItem("lyp_chat_session_id", data.sessionId);
+        const key = `lyp_chat_session_id_${user?.userId || "guest"}`;
+        sessionStorage.setItem(key, data.sessionId);
       }
 
       setMessages(prev => [
@@ -142,7 +140,8 @@ export default function Chatbox() {
 
   const handleClearChat = () => {
     if (window.confirm("Bạn có muốn xóa toàn bộ lịch sử trò chuyện và bắt đầu phiên mới?")) {
-      sessionStorage.removeItem("lyp_chat_session_id");
+      const key = `lyp_chat_session_id_${user?.userId || "guest"}`;
+      sessionStorage.removeItem(key);
       setSessionId("");
       setMessages([
         { sender: "AI", content: greeting, createdAt: new Date() }

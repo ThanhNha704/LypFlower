@@ -130,11 +130,23 @@ namespace Web_HoaTuoi.Server.Controllers
 
             // 2. Tìm hoặc tạo ChatSession
             ChatSession? session = null;
+            string? currentUserId = null;
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+                currentUserId = userIdClaim?.Value;
+            }
+
             if (request.SessionId.HasValue && request.SessionId != Guid.Empty)
             {
                 session = await _db.ChatSessions
                     .Include(s => s.Messages)
                     .FirstOrDefaultAsync(s => s.Id == request.SessionId.Value);
+
+                if (session != null && !string.IsNullOrEmpty(session.UserId) && session.UserId != currentUserId)
+                {
+                    session = null;
+                }
             }
 
             if (session == null)
@@ -427,6 +439,25 @@ namespace Web_HoaTuoi.Server.Controllers
         [HttpGet("sessions/{sessionId}/messages")]
         public async Task<IActionResult> GetSessionMessages(Guid sessionId)
         {
+            var session = await _db.ChatSessions.FindAsync(sessionId);
+            if (session == null)
+            {
+                return NotFound();
+            }
+
+            // Kiểm tra quyền sở hữu phiên chat (Bảo mật chéo giữa các tài khoản)
+            string? currentUserId = null;
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+                currentUserId = userIdClaim?.Value;
+            }
+
+            if (!string.IsNullOrEmpty(session.UserId) && session.UserId != currentUserId)
+            {
+                return Forbid();
+            }
+
             var messages = await _db.ChatMessages
                 .Where(m => m.ChatSessionId == sessionId)
                 .OrderBy(m => m.CreatedAt)
